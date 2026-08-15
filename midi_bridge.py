@@ -96,7 +96,10 @@ def main():
     config = load_config(args.config)
 
     device: dict[str, Any] = config.get("device", {})
-    out_channel: int = device.get("output_channel", 14)
+
+    out_channel: int = (
+        device.get("output_channel", 15) - 1  # Convert to 0-based index for mido
+    )
 
     pedalboards: dict[int, str] = config.get("pedalboards", {})
     effect_toggles: dict[int, int] = config.get("effect_toggles", {})
@@ -179,7 +182,7 @@ def main():
                     midi_out.send(out_msg)
 
                     logger.info(
-                        f"Translated PC {prog_num} -> Sent CC {cc_num} (Value {cc_val})"
+                        f"Received PC {prog_num} -> Sent CC {cc_num} (Value {cc_val})"
                     )
 
                     last_effect_toggle_time = now
