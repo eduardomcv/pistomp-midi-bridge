@@ -53,11 +53,11 @@ def load_config(config_path: str) -> dict[str, Any]:
     return config
 
 
-def load_pedalboard(board_name: str, config: dict[str, Any]) -> None:
+def load_pedalboard(board_name: str, system_config: dict[str, str]) -> None:
     logger.info(f"Resetting engine and loading: {board_name}")
 
-    api_url = config["system"].get("mod_api_url", "http://localhost:80")
-    boards_dir = config["system"].get(
+    api_url = system_config.get("mod_api_url", "http://localhost:80")
+    boards_dir = system_config.get(
         "pedalboards_dir", "/home/pistomp/data/.pedalboards/"
     )
 
@@ -95,26 +95,29 @@ def main():
     args = parser.parse_args()
     config = load_config(args.config)
 
-    pedalboards = config["pedalboards"]
-    effect_toggles = config["effect_toggles"]
-    adv = config.get("advanced", {})
-    board_cooldown = adv.get("pedalboard_cooldown_sec", 2.5)
-    toggle_cooldown = adv.get("toggle_cooldown_sec", 0.2)
+    device: dict[str, Any] = config.get("device", {})
+    pedalboards: dict[str, str] = config.get("pedalboards", {})
+    effect_toggles: dict[str, int] = config.get("effect_toggles", {})
+    system: dict[str, Any] = config.get("system", {})
+    settings: dict[str, Any] = config.get("settings", {})
 
-    last_pedalboard_load_time = 0
-    last_effect_toggle_time = 0
-    current_board = None
-    toggle_states = {pc: False for pc in effect_toggles}
+    board_cooldown: float = settings.get("pedalboard_cooldown_sec", 2.5)
+    effect_toggle_cooldown: float = settings.get("effect_toggle_cooldown_sec", 0.2)
+
+    last_pedalboard_load_time: float = 0
+    last_effect_toggle_time: float = 0
+    current_board: str | None = None
+    toggle_states: dict[str, bool] = {pc: False for pc in effect_toggles}
 
     rtmidi_backend = mido.Backend("mido.backends.rtmidi")
 
-    v_port_name = config["device"].get("virtual_port_name", "MIDI-Translator")
+    v_port_name: str = config["device"].get("virtual_port_name", "MIDI-Translator")
     midi_out = rtmidi_backend.open_output(v_port_name, virtual=True)
 
     input_port_name = None
-    keywords = config["device"].get("search_keywords")
+    keywords: list[str] = device.get("search_keywords", ["MIDI", "Controller"])
 
-    input_names = rtmidi_backend.get_input_names()
+    input_names: list[str] = rtmidi_backend.get_input_names()
 
     for name in input_names:
         if any(keyword in name for keyword in keywords):
@@ -145,12 +148,14 @@ def main():
                     is_different_board = target_board != current_board
 
                     if is_off_cooldown and is_different_board:
-                        load_pedalboard(target_board, config)
+                        load_pedalboard(board_name=target_board, system_config=system)
                         last_pedalboard_load_time = now
                         current_board = target_board
 
                 elif prog_num in effect_toggles:
-                    is_off_cooldown = now - last_effect_toggle_time > toggle_cooldown
+                    is_off_cooldown = (
+                        now - last_effect_toggle_time > effect_toggle_cooldown
+                    )
 
                     if not is_off_cooldown:
                         continue
