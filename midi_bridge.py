@@ -116,8 +116,20 @@ def main():
 
     rtmidi_backend = mido.Backend("mido.backends.rtmidi")
 
-    virtual_port_name: str = device.get("virtual_port_name", "MIDI-Translator")
-    midi_out = rtmidi_backend.open_output(virtual_port_name, virtual=True)
+    output_names: list[str] = rtmidi_backend.get_output_names()
+    vir_port_name: str | None = None
+
+    for name in output_names:
+        if "VirMIDI" in name or "Virtual Raw MIDI" in name:
+            vir_port_name = name
+            break
+
+    if vir_port_name:
+        midi_out = rtmidi_backend.open_output(vir_port_name)
+        logger.info(f"Connected CC output to fake hardware port: {vir_port_name}")
+    else:
+        logger.error("VirMIDI port not found! Did you run 'sudo modprobe snd-virmidi'?")
+        sys.exit(1)
 
     input_port_name: str | None = None
     keywords: list[str] = device.get("search_keywords", ["MIDI", "Controller"])
