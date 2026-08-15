@@ -1,0 +1,18 @@
+[project]
+name = "pistomp-midi-bridge"
+version = "0.1.0"
+description = "A python MIDI bridge between a pistomp and a MIDI controller."
+readme = "README.md"
+authors = [
+    { name = "Eduardo Vicente", email = "eduardomcvicente@gmail.com" }
+]
+requires-python = "==3.11.2"
+dependencies = [
+    "mido>=1.3.3",
+    "python-rtmidi>=1.5.8",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.3",
+]
