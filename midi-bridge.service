@@ -1,0 +1,19 @@
+[Unit]
+Description=MIDI Bridge for pi-stomp
+After=mod-ui.service pistomp.service
+Requires=mod-ui.service
+
+[Service]
+Type=simple
+User=pistomp
+Restart=always
+RestartSec=3
+
+# Point the working directory to where the script is located
+WorkingDirectory=/home/pistomp/pistomp-midi-bridge
+
+# NOTE: this assumes that config.json is in the same working directory
+ExecStart=/usr/bin/python3 midi_bridge.py --config config.json
+
+[Install]
+WantedBy=multi-user.target
