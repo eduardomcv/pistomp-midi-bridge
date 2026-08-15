@@ -3,7 +3,6 @@
 		"search_keywords": [
 			"MIDI"
 		],
-		"virtual_port_name": "MIDI-Translator",
 		"output_channel": 14
 	},
 	"pedalboards": {
