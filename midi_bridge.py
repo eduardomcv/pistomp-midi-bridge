@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import os
+import subprocess
 import sys
 import time
 import urllib.parse
@@ -114,94 +115,98 @@ def main():
     current_board: str | None = None
     toggle_states: dict[int, bool] = {pc: False for pc in effect_toggles}
 
-    rtmidi_backend = mido.Backend("mido.backends.rtmidi")
+    virmidi_file = None
 
-    output_names: list[str] = rtmidi_backend.get_output_names()
-    vir_port_name: str | None = None
+    try:
+        amidi_out = subprocess.check_output(["amidi", "-l"], text=True)
 
-    for name in output_names:
-        if "VirMIDI" in name or "Virtual Raw MIDI" in name:
-            vir_port_name = name
-            break
+        for line in amidi_out.split("\n"):
+            if "Virtual Raw MIDI" in line:
+                hw = line.split()[1].replace("hw:", "").split(",")
+                virmidi_file = f"/dev/snd/midiC{hw[0]}D{hw[1]}"
+                break
 
-    if vir_port_name:
-        midi_out = rtmidi_backend.open_output(vir_port_name)
-        logger.info(f"Connected CC output to fake hardware port: {vir_port_name}")
-    else:
-        logger.error("VirMIDI port not found! Did you run 'sudo modprobe snd-virmidi'?")
-        sys.exit(1)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        logger.exception("Failed to run amidi.")
 
-    input_port_name: str | None = None
-    keywords: list[str] = device.get("search_keywords", ["MIDI", "Controller"])
-
-    input_names: list[str] = rtmidi_backend.get_input_names()
-
-    for name in input_names:
-        if any(keyword in name for keyword in keywords):
-            input_port_name = name
-            break
-
-    if not input_port_name:
+    if not virmidi_file or not os.path.exists(virmidi_file):
         logger.error(
-            f"Could not find MIDI port matching keywords: {keywords}\nAvailable ports: {input_names}"
+            "VirMIDI raw device not found! Run 'sudo modprobe snd-virmidi midi_devs=1'"
         )
         sys.exit(1)
 
-    logger.info(f"Listening to '{input_port_name}' for Program Changes...")
+    with open(virmidi_file, "wb", buffering=0) as midi_out_fd:
+        logger.info(f"Connected CC output directly to kernel: {virmidi_file}")
 
-    try:
-        with rtmidi_backend.open_input(input_port_name) as inport:
-            for msg in inport:
-                if msg.type != "program_change":
-                    continue
+        rtmidi_backend = mido.Backend("mido.backends.rtmidi")
+        input_names: list[str] = rtmidi_backend.get_input_names()
 
-                prog_num = msg.program
-                now = time.time()
+        input_port_name: str | None = None
+        keywords: list[str] = device.get("search_keywords", ["MIDI", "Controller"])
 
-                if prog_num in pedalboards:
-                    target_board: str = pedalboards[prog_num]
-                    is_off_cooldown: bool = (
-                        now - last_pedalboard_load_time > board_cooldown
-                    )
-                    is_different_board: bool = target_board != current_board
+        for name in input_names:
+            if any(keyword in name for keyword in keywords):
+                input_port_name = name
+                break
 
-                    if is_off_cooldown and is_different_board:
-                        load_pedalboard(board_name=target_board, system_config=system)
-                        last_pedalboard_load_time = now
-                        current_board = target_board
+        if not input_port_name:
+            logger.error(
+                f"Could not find MIDI port matching keywords: {keywords}\nAvailable ports: {input_names}"
+            )
+            sys.exit(1)
 
-                elif prog_num in effect_toggles:
-                    is_off_cooldown: bool = (
-                        now - last_effect_toggle_time > effect_toggle_cooldown
-                    )
+        logger.info(f"Listening to '{input_port_name}' for Program Changes...")
 
-                    if not is_off_cooldown:
+        try:
+            with rtmidi_backend.open_input(input_port_name) as inport:
+                for msg in inport:
+                    if msg.type != "program_change":
                         continue
 
-                    toggled = not toggle_states[prog_num]
-                    toggle_states[prog_num] = toggled
+                    prog_num = msg.program
+                    now = time.time()
 
-                    cc_num = effect_toggles[prog_num]
-                    cc_val = 127 if toggled else 0
+                    if prog_num in pedalboards:
+                        target_board: str = pedalboards[prog_num]
+                        is_off_cooldown: bool = (
+                            now - last_pedalboard_load_time > board_cooldown
+                        )
+                        is_different_board: bool = target_board != current_board
 
-                    out_msg = mido.Message(
-                        "control_change",
-                        channel=out_channel,
-                        control=cc_num,
-                        value=cc_val,
-                    )
+                        if is_off_cooldown and is_different_board:
+                            load_pedalboard(
+                                board_name=target_board, system_config=system
+                            )
+                            last_pedalboard_load_time = now
+                            current_board = target_board
 
-                    midi_out.send(out_msg)
+                    elif prog_num in effect_toggles:
+                        is_off_cooldown: bool = (
+                            now - last_effect_toggle_time > effect_toggle_cooldown
+                        )
 
-                    logger.info(
-                        f"Received PC {prog_num} -> Sent CC {cc_num} (Value {cc_val})"
-                    )
+                        if not is_off_cooldown:
+                            continue
 
-                    last_effect_toggle_time = now
+                        toggled = not toggle_states[prog_num]
+                        toggle_states[prog_num] = toggled
 
-    except KeyboardInterrupt:
-        print("\nExiting...")
-        sys.exit(0)
+                        cc_num = effect_toggles[prog_num]
+                        cc_val = 127 if toggled else 0
+
+                        # Generate the raw bytes (Status byte + CC Number + Value)
+                        status_byte = 0xB0 + out_channel
+                        midi_out_fd.write(bytes([status_byte, cc_num, cc_val]))
+
+                        logger.info(
+                            f"Received PC {prog_num} -> Sent CC {cc_num} (Value {cc_val})"
+                        )
+
+                        last_effect_toggle_time = now
+
+        except KeyboardInterrupt:
+            print("\nExiting...")
+            sys.exit(0)
 
 
 if __name__ == "__main__":
