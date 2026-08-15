@@ -1,0 +1,27 @@
+{
+	"device": {
+		"search_keywords": [
+			"SINCO",
+			"M-Vave"
+		],
+		"virtual_port_name": "MVave-Translator"
+	},
+	"pedalboards": {
+		"0": "My_Pedalboard",
+		"1": "My_Other_Pedalboard"
+	},
+	"effect_toggles": {
+		"10": 10,
+		"11": 11,
+		"12": 12,
+		"13": 13
+	},
+	"system": {
+		"mod_api_url": "http://localhost:80",
+		"pedalboards_dir": "/home/pistomp/data/.pedalboards/"
+	},
+	"settings": {
+		"pedalboard_cooldown_sec": 2.5,
+		"effect_toggle_cooldown_sec": 0.2
+	}
+}
