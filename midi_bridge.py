@@ -111,8 +111,8 @@ def main():
 
     rtmidi_backend = mido.Backend("mido.backends.rtmidi")
 
-    v_port_name: str = config["device"].get("virtual_port_name", "MIDI-Translator")
-    midi_out = rtmidi_backend.open_output(v_port_name, virtual=True)
+    virtual_port_name: str = device.get("virtual_port_name", "MIDI-Translator")
+    midi_out = rtmidi_backend.open_output(virtual_port_name, virtual=True)
 
     input_port_name: str | None = None
     keywords: list[str] = device.get("search_keywords", ["MIDI", "Controller"])
