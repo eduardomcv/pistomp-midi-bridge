@@ -10,10 +10,10 @@
 		"1": "My_Other_Pedalboard"
 	},
 	"effect_toggles": {
-		"10": 10,
-		"11": 11,
-		"12": 12,
-		"13": 13
+		"0": 110,
+		"1": 111,
+		"2": 112,
+		"3": 113
 	},
 	"system": {
 		"mod_api_url": "http://localhost:80",
