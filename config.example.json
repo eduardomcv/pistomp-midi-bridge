@@ -1,10 +1,9 @@
 {
 	"device": {
 		"search_keywords": [
-			"SINCO",
-			"M-Vave"
+			"MIDI"
 		],
-		"virtual_port_name": "MVave-Translator"
+		"virtual_port_name": "MIDI-Translator"
 	},
 	"pedalboards": {
 		"0": "My_Pedalboard",
