@@ -114,7 +114,7 @@ def main():
     v_port_name: str = config["device"].get("virtual_port_name", "MIDI-Translator")
     midi_out = rtmidi_backend.open_output(v_port_name, virtual=True)
 
-    input_port_name = None
+    input_port_name: str | None = None
     keywords: list[str] = device.get("search_keywords", ["MIDI", "Controller"])
 
     input_names: list[str] = rtmidi_backend.get_input_names()
@@ -142,10 +142,11 @@ def main():
                 now = time.time()
 
                 if prog_num in pedalboards:
-                    target_board = pedalboards[prog_num]
-
-                    is_off_cooldown = now - last_pedalboard_load_time > board_cooldown
-                    is_different_board = target_board != current_board
+                    target_board: str = pedalboards[prog_num]
+                    is_off_cooldown: bool = (
+                        now - last_pedalboard_load_time > board_cooldown
+                    )
+                    is_different_board: bool = target_board != current_board
 
                     if is_off_cooldown and is_different_board:
                         load_pedalboard(board_name=target_board, system_config=system)
@@ -153,17 +154,18 @@ def main():
                         current_board = target_board
 
                 elif prog_num in effect_toggles:
-                    is_off_cooldown = (
+                    is_off_cooldown: bool = (
                         now - last_effect_toggle_time > effect_toggle_cooldown
                     )
 
                     if not is_off_cooldown:
                         continue
 
-                    toggle_states[prog_num] = not toggle_states[prog_num]
+                    toggled = not toggle_states[prog_num]
+                    toggle_states[prog_num] = toggled
 
                     cc_num = effect_toggles[prog_num]
-                    cc_val = 127 if toggle_states[prog_num] else 0
+                    cc_val = 127 if toggled else 0
 
                     out_msg = mido.Message(
                         "control_change",
