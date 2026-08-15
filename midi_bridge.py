@@ -98,9 +98,7 @@ def main():
 
     device: dict[str, Any] = config.get("device", {})
 
-    out_channel: int = (
-        device.get("output_channel", 15) - 1  # Convert to 0-based index for mido
-    )
+    out_channel: int = device.get("output_channel", 14)
 
     pedalboards: dict[int, str] = config.get("pedalboards", {})
     effect_toggles: dict[int, int] = config.get("effect_toggles", {})
