@@ -96,8 +96,8 @@ def main():
     config = load_config(args.config)
 
     device: dict[str, Any] = config.get("device", {})
-    pedalboards: dict[str, str] = config.get("pedalboards", {})
-    effect_toggles: dict[str, int] = config.get("effect_toggles", {})
+    pedalboards: dict[int, str] = config.get("pedalboards", {})
+    effect_toggles: dict[int, int] = config.get("effect_toggles", {})
     system: dict[str, Any] = config.get("system", {})
     settings: dict[str, Any] = config.get("settings", {})
 
@@ -107,7 +107,7 @@ def main():
     last_pedalboard_load_time: float = 0
     last_effect_toggle_time: float = 0
     current_board: str | None = None
-    toggle_states: dict[str, bool] = {pc: False for pc in effect_toggles}
+    toggle_states: dict[int, bool] = {pc: False for pc in effect_toggles}
 
     rtmidi_backend = mido.Backend("mido.backends.rtmidi")
 
