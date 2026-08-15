@@ -96,6 +96,8 @@ def main():
     config = load_config(args.config)
 
     device: dict[str, Any] = config.get("device", {})
+    out_channel: int = device.get("output_channel", 14)
+
     pedalboards: dict[int, str] = config.get("pedalboards", {})
     effect_toggles: dict[int, int] = config.get("effect_toggles", {})
     system: dict[str, Any] = config.get("system", {})
@@ -169,7 +171,7 @@ def main():
 
                     out_msg = mido.Message(
                         "control_change",
-                        channel=0,
+                        channel=out_channel,
                         control=cc_num,
                         value=cc_val,
                     )
