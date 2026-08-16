@@ -4,7 +4,7 @@ import re
 
 from mido import Backend
 
-from mod_state import Binding
+from python_midi_bridge.mod_state import Binding
 
 logger = logging.getLogger(__name__)
 

@@ -5,10 +5,10 @@ import logging
 import signal
 import sys
 
-from bridge import run_bridge
-from config import load_config
-from midi import find_virmidi_device
-from mod_state import ModState, ModStateClient
+from python_midi_bridge.bridge import run_bridge
+from python_midi_bridge.config import load_config
+from python_midi_bridge.midi import find_virmidi_device
+from python_midi_bridge.mod_state import ModState, ModStateClient
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
