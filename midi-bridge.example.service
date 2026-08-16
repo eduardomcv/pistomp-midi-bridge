@@ -13,7 +13,7 @@ RestartSec=5
 WorkingDirectory=/home/pistomp/pistomp-midi-bridge
 
 # NOTE: this assumes that config.json is in the same working directory
-ExecStart=/usr/bin/python3 midi_bridge.py --config config.json
+ExecStart=/usr/bin/python3 main.py --config config.json
 
 [Install]
 WantedBy=multi-user.target
