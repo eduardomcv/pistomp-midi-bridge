@@ -8,13 +8,24 @@ It can also switch pedalboards from the same controller. Translated CC messages
 are written to a `snd-virmidi` raw MIDI device, so MOD UI sees them arriving
 from a hardware port and MIDI Learn works on any plugin parameter.
 
+Effect toggles read the actual current state from mod-ui's `/websocket` feed
+before deciding which way to flip, instead of guessing from the last press
+this bridge saw. That keeps your switches correct even right after startup,
+after loading a different pedalboard, or after toggling the same effect from
+the pi-stomp's own footswitches or the web UI — cases where a purely local
+on/off guess would otherwise desync from the pedal's actual state. Credit to
+[pi-stomp](https://github.com/TreeFallSound/pi-stomp)'s own `modalapi` for
+confirming this is how the pi-stomp's onboard switches solve the same
+problem; no code from it is used here (pi-stomp is AGPL-3.0, this project is
+MIT), just the same publicly-documented `/websocket` protocol.
+
 ## Prerequisites
 
 1. Install Python Dependencies
 
     ```bash
     sudo apt update
-    sudo apt install python3-mido python3-rtmidi
+    sudo apt install python3-mido python3-rtmidi python3-websockets
     ```
 
 2. Enable the VirMIDI Kernel Module
@@ -90,6 +101,10 @@ Edit `config.json` and adjust to your needs:
     will be sent on.
 * **`pedalboards`**: Map PC numbers to the exact names of your pedalboards.
 * **`effect_toggles`**: Map PC numbers to the CC numbers you want to output.
+* **`system.mod_ws_url`** (optional): mod-ui's WebSocket endpoint, used to read
+    live plugin state. Defaults to `mod_api_url` with `http://` swapped for
+    `ws://` and `/websocket` appended, which is correct unless you've changed
+    mod-ui's default port.
 
 A given PC number may appear in `pedalboards` or in `effect_toggles`, but not in
 both; the script refuses to start otherwise. Controllers that send a different
@@ -198,3 +213,34 @@ verify the messages actually reach the sequencer:
 aseqdump -l                 # find the VirMIDI client number
 aseqdump -p <client>:0      # stomp a switch, control changes should appear
 ```
+
+### Log lines say "no live binding yet, blind toggle"
+
+The bridge couldn't connect to mod-ui's WebSocket, or the current pedalboard
+has no MIDI mapping on that channel/CC. Check:
+
+```bash
+journalctl -u midi-bridge.service | grep "WebSocket connection failed"
+```
+
+If mod-ui is reachable at `system.mod_api_url` but the WebSocket URL differs
+(e.g. non-default port), set `system.mod_ws_url` explicitly in `config.json`.
+
+## Development
+
+Install dependencies (pinned to match the apt packages used on the pi-stomp
+itself, so tests run against the same versions the device runs):
+
+```bash
+uv sync --group dev
+```
+
+Run the test suite:
+
+```bash
+uv run pytest
+```
+
+`tests/fixtures/mod_ui_connect_dump.txt` is a real capture of mod-ui's
+`/websocket` feed from a running pi-stomp, used to test the WebSocket message
+parser (`mod_state.py`) against actual wire data rather than guessed formats.
