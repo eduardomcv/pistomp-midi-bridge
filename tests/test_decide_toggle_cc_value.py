@@ -1,5 +1,5 @@
-from midi import decide_toggle_cc_value
-from mod_state import Binding
+from pistomp_midi_bridge.midi import decide_toggle_cc_value
+from pistomp_midi_bridge.mod_state import Binding
 
 # mod-host's :bypass CC semantics (from effects.c:2366):
 #   CC < 64  → bypassed=true  (effect OFF, bypass=1.0)

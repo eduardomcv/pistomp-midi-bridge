@@ -3,7 +3,7 @@ import asyncio
 import pytest
 import websockets
 
-from mod_state import ModState, ModStateClient
+from pistomp_midi_bridge.mod_state import ModState, ModStateClient
 
 
 @pytest.mark.asyncio

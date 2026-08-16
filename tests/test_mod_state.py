@@ -1,4 +1,4 @@
-from mod_state import (
+from pistomp_midi_bridge.mod_state import (
     AddPluginMessage,
     LoadingEndMessage,
     LoadingStartMessage,
@@ -150,7 +150,7 @@ def test_lookup_resumes_after_loading_end():
 
 
 def test_binding_midpoint():
-    from mod_state import Binding
+    from pistomp_midi_bridge.mod_state import Binding
 
     binding = Binding(
         instance="x", symbol=":bypass", value=0.0, minimum=0.0, maximum=1.0
