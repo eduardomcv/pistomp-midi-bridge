@@ -3,6 +3,7 @@ name = "pistomp-midi-bridge"
 version = "0.1.0"
 description = "A python MIDI bridge between a pistomp and a MIDI controller."
 readme = "README.md"
+license = "MIT"
 authors = [
     { name = "Eduardo Vicente", email = "eduardomcvicente@gmail.com" }
 ]
