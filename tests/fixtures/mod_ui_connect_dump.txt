@@ -1,0 +1,400 @@
+sys_stats 23.4 2400000 55650
+stats 24.1 1
+transport 0 4.000000 120.000000 none
+truebypass 1 1
+loading_start 0 1
+size 1752 2546
+add_hw_port /graph/capture_1 audio 0 Capture_1 1
+add_hw_port /graph/capture_2 audio 0 Capture_2 2
+add_hw_port /graph/playback_1 audio 1 Playback_1 1
+add_hw_port /graph/playback_2 audio 1 Playback_2 2
+add_hw_port /graph/serial_midi_in midi 0 Serial_MIDI_In 0
+add_hw_port /graph/midi_capture_2 midi 0 SINCO_MIDI_1 1
+add_hw_port /graph/midi_capture_4 midi 0 touchosc_MIDI_1 3
+add_hw_port /graph/serial_midi_out midi 1 Serial_MIDI_Out 0
+add_hw_port /graph/midi_playback_2 midi 1 SINCO_MIDI_1 2
+add_hw_port /graph/midi_playback_4 midi 1 touchosc_MIDI_1 4
+add /graph/MultiChorus http://calf.sourceforge.net/plugins/MultiChorus 536.0 906.0 1 0_0_0_0 0
+add /graph/cabsim_IR_loader http://moddevices.com/plugins/mod-devel/cabsim-IR-loader 2686.0 397.0 1 0_0_1_0 0
+add /graph/echo http://moddevices.com/plugins/tap/echo 1238.0 847.0 1 0_3_7_0 0
+add /graph/neural_amp_modeler_lv2 http://github.com/mikeoliphant/neural-amp-modeler-lv2 2559.0 68.0 1 0_0_2_0 0
+add /graph/plate urn:dragonfly:plate 2026.0 1086.0 0 0_6_4_0 0
+add /graph/stereo http://gareus.org/oss/lv2/tinygain#stereo 2945.0 1150.0 0 0_0_770_0 0
+add /graph/Noisegate http://moddevices.com/plugins/caps/Noisegate 384.3 142.2 0 0_24_9_0 0
+add /graph/_compressor http://guitarix.sourceforge.net/plugins/gx_compressor#_compressor 1393.4 58.2 0 0_3_28_0 0
+add /graph/_gcb_95_ http://guitarix.sourceforge.net/plugins/gx_gcb_95_#_gcb_95_ 881.0 87.0 1 0_3_28_0 0
+add /graph/KlonCentaur https://github.com/jatinchowdhury18/KlonCentaur 1936.0 74.0 0 0_4_2_0 0
+midi_map /graph/MultiChorus :bypass 13 61 0.0 1.0
+param_set /graph/MultiChorus min_delay 5.000000
+param_set /graph/MultiChorus mod_depth 1.592241
+param_set /graph/MultiChorus mod_rate 1.151600
+param_set /graph/MultiChorus stereo 180.000000
+param_set /graph/MultiChorus voices 4.000000
+param_set /graph/MultiChorus vphase 64.000000
+param_set /graph/MultiChorus amount 0.332589
+param_set /graph/MultiChorus dry 0.500000
+param_set /graph/MultiChorus freq 100.000000
+param_set /graph/MultiChorus freq2 5000.000000
+param_set /graph/MultiChorus q 0.125000
+param_set /graph/MultiChorus overlap 0.750000
+param_set /graph/MultiChorus on 1.000000
+param_set /graph/MultiChorus level_in 1.000000
+param_set /graph/MultiChorus level_out 1.354961
+param_set /graph/MultiChorus lfo 1.000000
+param_set /graph/cabsim_IR_loader Gain 0.000000
+patch_set /graph/cabsim_IR_loader 1 http://moddevices.com/plugins/mod-devel/cabsim-IR-loader#ir p /home/pistomp/data/user-files/Speaker Cabinets IRs/1965 Fender Twin Reverb Blackface/Speaker_w_57_for_Twin.wav
+midi_map /graph/echo :bypass 13 62 0.0 1.0
+param_set /graph/echo ldelay 350.000000
+param_set /graph/echo lfeedback 33.482143
+param_set /graph/echo rhaasdelay 525.000000
+param_set /graph/echo rhaasfeedback 50.000000
+param_set /graph/echo lecholevel -4.419643
+param_set /graph/echo recholevel -4.642857
+param_set /graph/echo dryLevel -4.732143
+param_set /graph/echo crossmode 1.000000
+param_set /graph/echo haaseffect 1.000000
+param_set /graph/echo swapoutputs 0.000000
+param_set /graph/neural_amp_modeler_lv2 input_level 0.000000
+param_set /graph/neural_amp_modeler_lv2 output_level 10.167800
+param_set /graph/neural_amp_modeler_lv2 quality_scale 1.000000
+patch_set /graph/neural_amp_modeler_lv2 1 http://github.com/mikeoliphant/neural-amp-modeler-lv2#model p /home/pistomp/data/user-files/NAM Models/1965 Fender Twin Reverb Blackface/twin_normal.nam
+midi_map /graph/plate :bypass 13 63 0.0 1.0
+param_set /graph/plate dry_level 100.000000
+param_set /graph/plate early_level 33.091518
+param_set /graph/plate algorithm 1.000000
+param_set /graph/plate width 100.000000
+param_set /graph/plate predelay 0.200000
+param_set /graph/plate decay 1.619252
+param_set /graph/plate low_cut 200.000000
+param_set /graph/plate high_cut 6055.803711
+param_set /graph/plate early_damp 5520.089355
+param_set /graph/stereo gain 0.000000
+param_set /graph/stereo enable 1.000000
+param_set /graph/stereo mute 0.000000
+output_set /graph/stereo level 0.022472
+midi_map /graph/Noisegate :bypass 14 110 0.0 1.0
+param_set /graph/Noisegate open -39.073662
+param_set /graph/Noisegate attack 0.039062
+param_set /graph/Noisegate close -26.428572
+param_set /graph/Noisegate mains 50.000000
+midi_map /graph/_compressor :bypass 14 112 0.0 1.0
+param_set /graph/_compressor RATIO 3.989955
+param_set /graph/_compressor KNEE 3.000000
+param_set /graph/_compressor THRESHOLD -20.000000
+param_set /graph/_compressor RELEASE 1.545759
+param_set /graph/_compressor ATTACK 0.200893
+midi_map /graph/_gcb_95_ :bypass 14 111 0.0 1.0
+param_set /graph/_gcb_95_ VOLUME 0.000000
+param_set /graph/_gcb_95_ HOTPOTZ 0.078740
+midi_map /graph/KlonCentaur :bypass 13 60 0.0 1.0
+param_set /graph/KlonCentaur lv2_freewheel 0.000000
+param_set /graph/KlonCentaur gain 0.175926
+param_set /graph/KlonCentaur treble 0.500000
+param_set /graph/KlonCentaur level 0.601004
+param_set /graph/KlonCentaur mode 0.000000
+param_set /graph/KlonCentaur lv2_enabled 1.000000
+param_set /graph/KlonCentaur mono 1.000000
+connect /graph/cabsim_IR_loader/out /graph/MultiChorus/in_l
+connect /graph/echo/outputright /graph/plate/lv2_audio_in_2
+connect /graph/_compressor/out /graph/KlonCentaur/lv2_audio_in
+connect /graph/KlonCentaur/lv2_audio_out /graph/neural_amp_modeler_lv2/input
+connect /graph/neural_amp_modeler_lv2/output /graph/cabsim_IR_loader/in
+connect /graph/MultiChorus/out_l /graph/echo/inputleft
+connect /graph/stereo/outR /graph/playback_2
+connect /graph/plate/lv2_audio_out_1 /graph/stereo/inL
+connect /graph/capture_1 /graph/Noisegate/in
+connect /graph/plate/lv2_audio_out_2 /graph/stereo/inR
+connect /graph/stereo/outL /graph/playback_1
+connect /graph/_gcb_95_/out /graph/_compressor/in
+connect /graph/Noisegate/out /graph/_gcb_95_/in
+connect /graph/MultiChorus/out_r /graph/echo/inputright
+connect /graph/echo/outputleft /graph/plate/lv2_audio_in_1
+midi_map /graph/MultiChorus :bypass 13 61 0.000000 1.000000
+midi_map /graph/echo :bypass 13 62 0.000000 1.000000
+midi_map /graph/plate :bypass 13 63 0.000000 1.000000
+midi_map /graph/stereo mute 14 113 0.000000 1.000000
+midi_map /graph/Noisegate :bypass 14 110 0.000000 1.000000
+midi_map /graph/_compressor :bypass 14 112 0.000000 1.000000
+midi_map /graph/_gcb_95_ :bypass 14 111 0.000000 1.000000
+midi_map /graph/KlonCentaur :bypass 13 60 0.000000 1.000000
+midi_map /graph/_gcb_95_ HOTPOTZ 0 11 0.000000 1.000000
+loading_end 0
+output_set /graph/stereo level 0.022163
+data_ready 481634
+output_set /graph/stereo level 0.021859
+data_ready 481635
+output_set /graph/stereo level 0.021559
+data_ready 481636
+output_set /graph/stereo level 0.021264
+data_ready 481637
+output_set /graph/stereo level 0.020972
+data_ready 481638
+output_set /graph/stereo level 0.020684
+data_ready 481639
+output_set /graph/stereo level 0.020400
+data_ready 481640
+output_set /graph/stereo level 0.020120
+data_ready 481641
+output_set /graph/stereo level 0.019844
+data_ready 481642
+output_set /graph/stereo level 0.019572
+data_ready 481643
+output_set /graph/stereo level 0.019304
+data_ready 481644
+output_set /graph/stereo level 0.019039
+data_ready 481645
+output_set /graph/stereo level 0.018778
+data_ready 481646
+output_set /graph/stereo level 0.020733
+data_ready 481647
+output_set /graph/stereo level 0.020448
+data_ready 481648
+output_set /graph/stereo level 0.020168
+data_ready 481649
+output_set /graph/stereo level 0.019891
+data_ready 481650
+output_set /graph/stereo level 0.019618
+data_ready 481651
+output_set /graph/stereo level 0.019349
+data_ready 481652
+output_set /graph/stereo level 0.019084
+data_ready 481653
+output_set /graph/stereo level 0.018822
+data_ready 481654
+output_set /graph/stereo level 0.018564
+data_ready 481655
+output_set /graph/stereo level 0.018309
+data_ready 481656
+output_set /graph/stereo level 0.018058
+data_ready 481657
+output_set /graph/stereo level 0.017810
+data_ready 481658
+output_set /graph/stereo level 0.017565
+data_ready 481659
+output_set /graph/stereo level 0.017324
+data_ready 481660
+output_set /graph/stereo level 0.017087
+data_ready 481661
+output_set /graph/stereo level 0.016852
+data_ready 481662
+output_set /graph/stereo level 0.016621
+data_ready 481663
+output_set /graph/stereo level 0.016393
+data_ready 481664
+output_set /graph/stereo level 0.016168
+data_ready 481665
+output_set /graph/stereo level 0.015946
+data_ready 481666
+output_set /graph/stereo level 0.015728
+data_ready 481667
+output_set /graph/stereo level 0.015512
+data_ready 481668
+output_set /graph/stereo level 0.015299
+data_ready 481669
+output_set /graph/stereo level 0.015089
+data_ready 481670
+output_set /graph/stereo level 0.014882
+data_ready 481671
+output_set /graph/stereo level 0.014678
+data_ready 481672
+output_set /graph/stereo level 0.014476
+data_ready 481673
+output_set /graph/stereo level 0.014278
+data_ready 481674
+output_set /graph/stereo level 0.014082
+data_ready 481675
+output_set /graph/stereo level 0.013889
+data_ready 481676
+output_set /graph/stereo level 0.013698
+data_ready 481677
+stats 22.1 1
+output_set /graph/stereo level 0.013510
+data_ready 481678
+output_set /graph/stereo level 0.013325
+data_ready 481679
+output_set /graph/stereo level 0.013142
+data_ready 481680
+output_set /graph/stereo level 0.012962
+data_ready 481681
+output_set /graph/stereo level 0.012784
+data_ready 481682
+output_set /graph/stereo level 0.012608
+data_ready 481683
+output_set /graph/stereo level 0.012435
+data_ready 481684
+output_set /graph/stereo level 0.012265
+data_ready 481685
+output_set /graph/stereo level 0.012097
+data_ready 481686
+output_set /graph/stereo level 0.011931
+data_ready 481687
+output_set /graph/stereo level 0.011767
+data_ready 481688
+output_set /graph/stereo level 0.011605
+data_ready 481689
+output_set /graph/stereo level 0.011446
+data_ready 481690
+output_set /graph/stereo level 0.011289
+data_ready 481691
+output_set /graph/stereo level 0.011134
+data_ready 481692
+output_set /graph/stereo level 0.010981
+data_ready 481693
+output_set /graph/stereo level 0.010831
+data_ready 481694
+output_set /graph/stereo level 0.010682
+data_ready 481695
+output_set /graph/stereo level 0.010536
+data_ready 481696
+output_set /graph/stereo level 0.010391
+data_ready 481697
+output_set /graph/stereo level 0.010249
+data_ready 481698
+output_set /graph/stereo level 0.010108
+data_ready 481699
+output_set /graph/stereo level 0.009969
+data_ready 481700
+output_set /graph/stereo level 0.009832
+data_ready 481701
+output_set /graph/stereo level 0.009698
+data_ready 481702
+output_set /graph/stereo level 0.009564
+data_ready 481703
+output_set /graph/stereo level 0.009433
+data_ready 481704
+output_set /graph/stereo level 0.009304
+data_ready 481705
+output_set /graph/stereo level 0.029849
+data_ready 481706
+output_set /graph/stereo level 0.030555
+data_ready 481707
+output_set /graph/stereo level 0.030167
+data_ready 481708
+output_set /graph/stereo level 0.029754
+data_ready 481709
+output_set /graph/stereo level 0.029345
+data_ready 481710
+output_set /graph/stereo level 0.028993
+data_ready 481711
+output_set /graph/stereo level 0.028596
+data_ready 481712
+output_set /graph/stereo level 0.028187
+data_ready 481713
+output_set /graph/stereo level 0.027767
+data_ready 481714
+output_set /graph/stereo level 0.027386
+data_ready 481715
+output_set /graph/stereo level 0.027010
+data_ready 481716
+output_set /graph/stereo level 0.026640
+data_ready 481717
+output_set /graph/stereo level 0.026274
+data_ready 481718
+output_set /graph/stereo level 0.025914
+data_ready 481719
+output_set /graph/stereo level 0.025558
+data_ready 481720
+output_set /graph/stereo level 0.025223
+data_ready 481721
+output_set /graph/stereo level 0.024877
+data_ready 481722
+output_set /graph/stereo level 0.024536
+data_ready 481723
+output_set /graph/stereo level 0.024199
+data_ready 481724
+output_set /graph/stereo level 0.023867
+data_ready 481725
+output_set /graph/stereo level 0.023540
+data_ready 481726
+output_set /graph/stereo level 0.023940
+data_ready 481727
+output_set /graph/stereo level 0.024902
+data_ready 481728
+output_set /graph/stereo level 0.025282
+data_ready 481729
+output_set /graph/stereo level 0.025749
+data_ready 481730
+output_set /graph/stereo level 0.025395
+data_ready 481731
+output_set /graph/stereo level 0.025039
+data_ready 481732
+output_set /graph/stereo level 0.024695
+data_ready 481733
+output_set /graph/stereo level 0.024410
+data_ready 481734
+output_set /graph/stereo level 0.024076
+data_ready 481735
+output_set /graph/stereo level 0.023745
+data_ready 481736
+output_set /graph/stereo level 0.023419
+data_ready 481737
+output_set /graph/stereo level 0.023068
+data_ready 481738
+output_set /graph/stereo level 0.022746
+data_ready 481739
+output_set /graph/stereo level 0.022488
+data_ready 481740
+output_set /graph/stereo level 0.022179
+data_ready 481741
+output_set /graph/stereo level 0.021875
+data_ready 481742
+output_set /graph/stereo level 0.021575
+data_ready 481743
+output_set /graph/stereo level 0.021279
+data_ready 481744
+output_set /graph/stereo level 0.020987
+data_ready 481745
+output_set /graph/stereo level 0.020699
+data_ready 481746
+output_set /graph/stereo level 0.020415
+data_ready 481747
+output_set /graph/stereo level 0.020135
+data_ready 481748
+output_set /graph/stereo level 0.019859
+data_ready 481749
+output_set /graph/stereo level 0.019586
+data_ready 481750
+output_set /graph/stereo level 0.019317
+data_ready 481751
+output_set /graph/stereo level 0.019052
+data_ready 481752
+output_set /graph/stereo level 0.018791
+data_ready 481753
+output_set /graph/stereo level 0.018533
+data_ready 481754
+output_set /graph/stereo level 0.018279
+data_ready 481755
+output_set /graph/stereo level 0.018028
+data_ready 481756
+output_set /graph/stereo level 0.017781
+data_ready 481757
+output_set /graph/stereo level 0.017537
+data_ready 481758
+output_set /graph/stereo level 0.017296
+data_ready 481759
+output_set /graph/stereo level 0.017059
+data_ready 481760
+output_set /graph/stereo level 0.016825
+data_ready 481761
+output_set /graph/stereo level 0.016594
+data_ready 481762
+output_set /graph/stereo level 0.016366
+data_ready 481763
+output_set /graph/stereo level 0.016142
+data_ready 481764
+output_set /graph/stereo level 0.015920
+data_ready 481765
+output_set /graph/stereo level 0.015702
+data_ready 481766
+output_set /graph/stereo level 0.015486
+data_ready 481767
+output_set /graph/stereo level 0.015274
+data_ready 481768
+output_set /graph/stereo level 0.024333
+data_ready 481769
+output_set /graph/stereo level 0.023969
+data_ready 481770
+output_set /graph/stereo level 0.023641
+data_ready 481771
+output_set /graph/stereo level 0.023291
+data_ready 481772
