@@ -46,6 +46,13 @@ bytes directly into a kernel-level raw hardware loopback.
       cp config.example.json config.json
     ```
 
+
+3. Create your service file:
+
+    ```sh
+      cp midi-bridge.service.example midi-bridge.service
+    ```
+
 ## Configuration (`config.json`)
 
 Edit `config.json` and adjust to your needs:
