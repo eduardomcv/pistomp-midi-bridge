@@ -119,4 +119,6 @@ def load_config(config_path: str) -> Config:
         ),
     )
 
+    validate_config(config)
+
     return config
