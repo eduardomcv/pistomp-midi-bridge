@@ -3,10 +3,10 @@ import time
 
 from mido import Backend
 
-from python_midi_bridge.config import Config
-from python_midi_bridge.midi import decide_toggle_cc_value, find_input_port
-from python_midi_bridge.mod_state import ModState
-from python_midi_bridge.pedalboard import load_pedalboard
+from pistomp_midi_bridge.config import Config
+from pistomp_midi_bridge.midi import decide_toggle_cc_value, find_input_port
+from pistomp_midi_bridge.mod_state import ModState
+from pistomp_midi_bridge.pedalboard import load_pedalboard
 
 logger = logging.getLogger(__name__)
 
