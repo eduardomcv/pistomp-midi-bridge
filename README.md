@@ -1,24 +1,36 @@
 # pi-stomp MIDI Bridge
 
-A Python script meant to be used as a lightweight daemon for pi-stomp (MODEP)
-that allows MIDI foot controllers to control the pi-stomp via Program Change
-(PC) messages.
+A Python script meant to be used as a lightweight daemon to intercept Program
+Change (PC) messages from a MIDI controller and translate them into Control
+Change (CC) messages for the pi-stomp ecosystem.
 
-By default, the MOD UI restricts pedalboard switching via USB MIDI and requires
-Control Change (CC) messages for effect toggles. This bridge acts as a
-translator: it catches PC messages natively via ALSA, triggers pedalboard loads
-via the local REST API, and translates higher PC numbers into virtual CC
-messages for effect mapping in the MOD UI.
+It bypasses MOD UI's strict software port filters by injecting translated MIDI
+bytes directly into a kernel-level raw hardware loopback.
 
 ## Prerequisites
 
-This script uses system Python libraries to natively interface with ALSA. Run
-this on your pi-stomp:
+1. Install Python Dependencies
 
-```sh
-sudo apt update
-sudo apt install python3-mido python3-rtmidi
-```
+    ```bash
+    sudo apt update
+    sudo apt install python3-mido python3-rtmidi
+    ```
+
+2. Enable the VirMIDI Kernel Module
+    To bypass MOD UI's software port filters, you must enable the Linux
+    `snd-virmidi` kernel module. Run this to load it immediately:
+
+    ```bash
+    sudo modprobe snd-virmidi midi_devs=1
+    ```
+
+    To ensure it survives a reboot, add it to your startup modules:
+
+    ```bash
+    echo "snd-virmidi" | sudo tee -a /etc/modules
+    echo "options snd-virmidi midi_devs=1" | sudo tee /etc/modprobe.d/snd-virmidi.conf
+    ```
+
 
 ## Installation
 
@@ -43,16 +55,14 @@ sudo apt install python3-mido python3-rtmidi
 
 ## Configuration (`config.json`)
 
-Edit `config.json` to map your MIDI controller's Program Change numbers.
+Edit `config.json` and adjust to your needs:
 
-* **`device`**: Set `search_keywords` to match your controller (e.g.,
-  `["SINCO", "M-Vave"]`).
-* **`pedalboards`**: Map incoming PC numbers to the exact names of your
-  pedalboard bundles.
-* **`effect_toggles`**: Map incoming PC numbers to the CC numbers you want to
-  output.
-* **`settings`**: Debounce cooldowns to prevent double-loading if you
-  accidentally double-tap a footswitch.
+* **`device.search_keywords`**: Set `search_keywords` to match your controller
+    (e.g. `["SINCO"]`).
+* **`device.output_channel`**: The MIDI channel (0-15) the translated CC messages
+    will be sent on.
+* **`pedalboards`**: Map PC numbers to the exact names of your pedalboards.
+* **`effect_toggles`**: Map PC numbers to the CC numbers you want to output.
 
 ### Example `config.json`
 
@@ -62,17 +72,17 @@ Edit `config.json` to map your MIDI controller's Program Change numbers.
         "search_keywords": [
             "MIDI"
         ],
-        "virtual_port_name": "MIDI-Translator"
+        "output_channel": 14
     },
     "pedalboards": {
         "0": "My_Pedalboard",
         "1": "My_Other_Pedalboard"
     },
     "effect_toggles": {
-        "10": 10,
-        "11": 11,
-        "12": 12,
-        "13": 13
+        "0": 110,
+        "1": 111,
+        "2": 112,
+        "3": 113
     },
     "system": {
         "mod_api_url": "http://localhost:80",
@@ -85,19 +95,43 @@ Edit `config.json` to map your MIDI controller's Program Change numbers.
 }
 ```
 
-## Usage in MOD UI
+## Usage
 
-Once the service is running, it will automatically create a virtual MIDI port.
+Test the script manually:
 
-To map an effect toggle, open the MOD UI, click **MIDI Learn** on the plugin
-parameter, and press the corresponding footswitch on your controller (e.g., PC
-10). The bridge will instantly translate it to CC 10 and map it to the plugin.
-
-## Troubleshooting
-
-To view live logs and see exactly what the bridge is translating, check the
-systemd journal:
-
-```sh
-journalctl -u midi-bridge.service -f
+```bash
+./midi_bridge.py
 ```
+
+### MOD UI Setup
+
+1. Open the MOD UI web interface.
+2. Click **MIDI Ports** at the bottom.
+3. Ensure **Separated mode** and **Enable Virtual MIDI Loopback** are checked.
+4. Check the box next to **Virtual Raw MIDI** and click **Save**.
+5. Use **MIDI Learn** on any plugin parameter to map your controller.
+
+### Running as a Service
+
+To run this automatically in the background as a systemd service, there is an
+example `midi-bridge.service` file included. The easiest way to set it up is to
+link it to the systemd directory and enable it:
+
+1. Link the service file to the systemd directory:
+
+    ```bash
+    sudo ln -s /path/to/repository/midi-bridge.service /etc/systemd/system/
+    
+    ```
+
+2. Reload the systemd daemon:
+
+    ```bash
+    sudo systemctl daemon-reload
+    ```
+
+3. Enable and start the service:
+
+    ```bash
+    sudo systemctl enable --now midi-bridge.service
+    ```
