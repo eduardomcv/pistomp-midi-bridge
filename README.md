@@ -91,6 +91,12 @@ Edit `config.json` and adjust to your needs:
 * **`pedalboards`**: Map PC numbers to the exact names of your pedalboards.
 * **`effect_toggles`**: Map PC numbers to the CC numbers you want to output.
 
+A given PC number may appear in `pedalboards` or in `effect_toggles`, but not in
+both; the script refuses to start otherwise. Controllers that send a different
+PC range per bank make this easy to arrange — on an M-Vave Chocolate, for
+instance, bank 1 sends PC 0-3 and bank 2 sends PC 4-7, so one bank can drive
+effect toggles while the other switches pedalboards.
+
 ### Example `config.json`
 
 ```json
@@ -102,8 +108,8 @@ Edit `config.json` and adjust to your needs:
         "output_channel": 14
     },
     "pedalboards": {
-        "0": "My_Pedalboard",
-        "1": "My_Other_Pedalboard"
+        "4": "My_Pedalboard",
+        "5": "My_Other_Pedalboard"
     },
     "effect_toggles": {
         "0": 110,

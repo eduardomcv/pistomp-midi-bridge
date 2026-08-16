@@ -6,8 +6,8 @@
 		"output_channel": 14
 	},
 	"pedalboards": {
-		"0": "My_Pedalboard",
-		"1": "My_Other_Pedalboard"
+		"4": "My_Pedalboard",
+		"5": "My_Other_Pedalboard"
 	},
 	"effect_toggles": {
 		"0": 110,
