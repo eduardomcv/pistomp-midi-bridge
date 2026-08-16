@@ -3,7 +3,7 @@
 		"search_keywords": [
 			"MIDI"
 		],
-		"output_channel": 14
+		"output_channel": 0
 	},
 	"pedalboards": {
 		"4": "My_Pedalboard",
@@ -17,6 +17,7 @@
 	},
 	"system": {
 		"mod_api_url": "http://localhost:80",
+		"mod_ws_url": "ws://localhost:80/websocket",
 		"pedalboards_dir": "/home/pistomp/data/.pedalboards/"
 	},
 	"settings": {
