@@ -46,13 +46,6 @@ bytes directly into a kernel-level raw hardware loopback.
       cp config.example.json config.json
     ```
 
-3. Install and start the systemd service:
-
-    ```sh
-     sudo ln -s /home/pistomp/mvave-bridge/midi-bridge.service /etc/systemd/system/
-     sudo systemctl daemon-reload sudo systemctl enable --now midi-bridge.service
-    ```
-
 ## Configuration (`config.json`)
 
 Edit `config.json` and adjust to your needs:
