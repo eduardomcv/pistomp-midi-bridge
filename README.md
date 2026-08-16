@@ -4,8 +4,9 @@ A Python script meant to be used as a lightweight daemon to intercept Program
 Change (PC) messages from a MIDI controller and translate them into Control
 Change (CC) messages for the pi-stomp ecosystem.
 
-It bypasses MOD UI's strict software port filters by injecting translated MIDI
-bytes directly into a kernel-level raw hardware loopback.
+It can also switch pedalboards from the same controller. Translated CC messages
+are written to a `snd-virmidi` raw MIDI device, so MOD UI sees them arriving
+from a hardware port and MIDI Learn works on any plugin parameter.
 
 ## Prerequisites
 
@@ -17,18 +18,44 @@ bytes directly into a kernel-level raw hardware loopback.
     ```
 
 2. Enable the VirMIDI Kernel Module
-    To bypass MOD UI's software port filters, you must enable the Linux
-    `snd-virmidi` kernel module. Run this to load it immediately:
+
+    MOD UI only lists MIDI ports that JACK reports as *hardware*, so a software
+    port (the kind `mido`/`rtmidi` can create) will never show up in its MIDI
+    device list, no matter what it is named. The `snd-virmidi` kernel module
+    provides a real sound card whose raw MIDI node this script writes to, which
+    MOD UI happily accepts.
+
+    > **Important:** always pin VirMIDI to a high card index. Without `index=`,
+    > it is loaded early at boot and takes ALSA card 0, which is the card
+    > `/etc/jackdrc` starts JACK on (`-d hw:0`). JACK then fails to start,
+    > taking `mod-host` and `mod-ui` down with it, and the pi-stomp screen
+    > stays white.
+
+    Load it immediately:
 
     ```bash
-    sudo modprobe snd-virmidi midi_devs=1
+    sudo modprobe snd-virmidi index=3 midi_devs=1
     ```
 
-    To ensure it survives a reboot, add it to your startup modules:
+    To make it survive a reboot:
 
     ```bash
     echo "snd-virmidi" | sudo tee -a /etc/modules
-    echo "options snd-virmidi midi_devs=1" | sudo tee /etc/modprobe.d/snd-virmidi.conf
+    echo "options snd-virmidi index=3 midi_devs=1" | sudo tee /etc/modprobe.d/snd-virmidi.conf
+    ```
+
+    Verify that your audio card is still card 0 afterwards:
+
+    ```bash
+    cat /proc/asound/cards
+    ```
+
+    Optionally, make JACK immune to card reordering altogether by referring to
+    the card by name instead of index in `/etc/jackdrc` (substitute your own
+    card id from the output above):
+
+    ```
+    -d alsa -d hw:IQaudIOCODEC
     ```
 
 
@@ -135,3 +162,33 @@ link it to the systemd directory and enable it:
     ```bash
     sudo systemctl enable --now midi-bridge.service
     ```
+
+## Troubleshooting
+
+### The pi-stomp screen is white and MOD UI is unreachable
+
+Almost always an ALSA card ordering problem, not the bridge itself. Check:
+
+```bash
+cat /proc/asound/cards
+systemctl status jack.service --no-pager
+```
+
+If VirMIDI is card 0, JACK cannot open the audio card and everything downstream
+of it fails. Fix the index as described in the prerequisites and reboot:
+
+```bash
+echo "options snd-virmidi index=3 midi_devs=1" | sudo tee /etc/modprobe.d/snd-virmidi.conf
+sudo systemctl reset-failed jack.service mod-ui.service
+sudo reboot
+```
+
+### The bridge logs translated CC messages but nothing happens in MOD UI
+
+Confirm that **Virtual Raw MIDI** is checked in MOD UI's MIDI Ports dialog, then
+verify the messages actually reach the sequencer:
+
+```bash
+aseqdump -l                 # find the VirMIDI client number
+aseqdump -p <client>:0      # stomp a switch, control changes should appear
+```
