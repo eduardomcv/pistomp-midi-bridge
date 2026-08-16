@@ -77,6 +77,7 @@ def test_lookup_returns_current_value_after_midi_map_and_param_set():
 
     binding = state.lookup(channel=14, controller=113)
 
+    assert binding is not None
     assert binding.instance == "stereo"
     assert binding.symbol == "mute"
     assert binding.value == 1.0
@@ -93,6 +94,7 @@ def test_bypass_value_is_seeded_from_add_message():
 
     binding = state.lookup(channel=14, controller=110)
 
+    assert binding is not None
     assert binding.value == 0.0
 
 
@@ -106,6 +108,7 @@ def test_live_bypass_param_set_overrides_add_seeded_value():
 
     binding = state.lookup(channel=14, controller=110)
 
+    assert binding is not None
     assert binding.value == 1.0
 
 
@@ -164,16 +167,22 @@ def test_full_device_capture_produces_correct_bindings():
 
     # Noisegate: not bypassed at connect time (add ... 0 ...)
     noisegate = state.lookup(channel=14, controller=110)
+
+    assert noisegate is not None
     assert noisegate.instance == "Noisegate"
     assert noisegate.value == 0.0
 
     # MultiChorus: bypassed at connect time (add ... 1 ...)
     multichorus = state.lookup(channel=13, controller=61)
+
+    assert multichorus is not None
     assert multichorus.instance == "MultiChorus"
     assert multichorus.value == 1.0
 
     # stereo:mute is a plain param_set, not seeded from `add`.
     stereo_mute = state.lookup(channel=14, controller=113)
+
+    assert stereo_mute is not None
     assert stereo_mute.instance == "stereo"
     assert stereo_mute.symbol == "mute"
     assert stereo_mute.value == 0.0

@@ -1,4 +1,4 @@
-from midi_bridge import decide_toggle_cc_value
+from midi import decide_toggle_cc_value
 from mod_state import Binding
 
 # mod-host's :bypass CC semantics (from effects.c:2366):
