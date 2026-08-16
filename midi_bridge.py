@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+import glob
 import json
 import logging
 import os
-import subprocess
+import re
+import signal
 import sys
 import time
 import urllib.parse
@@ -22,6 +24,10 @@ except ImportError:
         "Missing 'mido' library. Please run: sudo apt install python3-mido python3-rtmidi"
     )
     sys.exit(1)
+
+CARDS_FILE = "/proc/asound/cards"
+CARD_LINE = re.compile(r"^\s*(\d+)\s+\[(\w+)\s*\]")
+RECONNECT_DELAY_SEC = 3.0
 
 
 def load_config(config_path: str) -> dict[str, Any]:
@@ -51,16 +57,73 @@ def load_config(config_path: str) -> dict[str, Any]:
         )
         sys.exit(1)
 
+    channel = config.get("device", {}).get("output_channel", 0)
+
+    if not 0 <= channel <= 15:
+        logger.error(f"'output_channel' must be between 0 and 15, got {channel}.")
+        sys.exit(1)
+
+    for pc, cc in config["effect_toggles"].items():
+        if not 0 <= cc <= 127:
+            logger.error(f"CC number for PC {pc} must be between 0 and 127, got {cc}.")
+            sys.exit(1)
+
+    overlap = set(config["pedalboards"]) & set(config["effect_toggles"])
+
+    if overlap:
+        logger.error(
+            f"PC numbers {sorted(overlap)} are mapped in both 'pedalboards' and 'effect_toggles'."
+        )
+        sys.exit(1)
+
     return config
+
+
+def find_virmidi_device() -> str | None:
+    """Locate the VirMIDI raw MIDI device node, whatever ALSA card index it landed on.
+
+    MOD UI only lists MIDI ports that JACK reports as hardware, so a software
+    port (such as the ones mido/rtmidi create) can never be selected in its
+    MIDI device list. snd-virmidi is a real kernel sound card, so writing raw
+    bytes to its rawmidi node makes them arrive as hardware MIDI.
+    """
+    try:
+        with open(CARDS_FILE, "r") as f:
+            cards = f.read()
+    except OSError:
+        logger.exception(f"Could not read {CARDS_FILE}.")
+        return None
+
+    for line in cards.splitlines():
+        match = CARD_LINE.match(line)
+
+        if not match or match.group(2) != "VirMIDI":
+            continue
+
+        index = match.group(1)
+        devices = sorted(glob.glob(f"/dev/snd/midiC{index}D*"))
+
+        if devices:
+            return devices[0]
+
+        logger.error(f"VirMIDI is card {index} but it has no /dev/snd/midiC{index}D* node.")
+
+    return None
+
+
+def find_input_port(backend: mido.Backend, keywords: list[str]) -> str | None:
+    for name in backend.get_input_names():
+        if any(keyword in name for keyword in keywords):
+            return name
+
+    return None
 
 
 def load_pedalboard(board_name: str, system_config: dict[str, str]) -> None:
     logger.info(f"Resetting engine and loading: {board_name}")
 
     api_url = system_config.get("mod_api_url", "http://localhost:80")
-    boards_dir = system_config.get(
-        "pedalboards_dir", "/home/pistomp/data/.pedalboards/"
-    )
+    boards_dir = system_config.get("pedalboards_dir", "/home/pistomp/data/.pedalboards/")
 
     try:
         urllib.request.urlopen(f"{api_url}/reset", timeout=2)
@@ -97,13 +160,13 @@ def main():
     config = load_config(args.config)
 
     device: dict[str, Any] = config.get("device", {})
-
-    out_channel: int = device.get("output_channel", 14)
-
-    pedalboards: dict[int, str] = config.get("pedalboards", {})
-    effect_toggles: dict[int, int] = config.get("effect_toggles", {})
+    pedalboards: dict[int, str] = config["pedalboards"]
+    effect_toggles: dict[int, int] = config["effect_toggles"]
     system: dict[str, Any] = config.get("system", {})
     settings: dict[str, Any] = config.get("settings", {})
+
+    out_channel: int = device.get("output_channel", 0)
+    keywords: list[str] = device.get("search_keywords", ["MIDI", "Controller"])
 
     board_cooldown: float = settings.get("pedalboard_cooldown_sec", 2.5)
     effect_toggle_cooldown: float = settings.get("effect_toggle_cooldown_sec", 0.2)
@@ -111,101 +174,102 @@ def main():
     last_pedalboard_load_time: float = 0
     last_effect_toggle_time: float = 0
     current_board: str | None = None
-    toggle_states: dict[int, bool] = {pc: False for pc in effect_toggles}
+    toggle_states: dict[int, bool] = dict.fromkeys(effect_toggles, False)
 
-    virmidi_file = None
+    # systemd stops the service with SIGTERM. Turning it into SystemExit lets the
+    # context managers below release the MIDI ports before the process goes away.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
 
-    try:
-        amidi_out = subprocess.check_output(["amidi", "-l"], text=True)
+    virmidi_device = find_virmidi_device()
 
-        for line in amidi_out.split("\n"):
-            if "Virtual Raw MIDI" in line:
-                hw = line.split()[1].replace("hw:", "").split(",")
-                virmidi_file = f"/dev/snd/midiC{hw[0]}D{hw[1]}"
-                break
-
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        logger.exception("Failed to run amidi.")
-
-    if not virmidi_file or not os.path.exists(virmidi_file):
+    if not virmidi_device:
         logger.error(
-            "VirMIDI raw device not found! Run 'sudo modprobe snd-virmidi midi_devs=1'"
+            "VirMIDI device not found. Run 'sudo modprobe snd-virmidi index=3 midi_devs=1'"
         )
         sys.exit(1)
 
-    with open(virmidi_file, "wb", buffering=0) as midi_out_fd:
-        logger.info(f"Connected CC output directly to kernel: {virmidi_file}")
+    backend = mido.Backend("mido.backends.rtmidi")
 
-        rtmidi_backend = mido.Backend("mido.backends.rtmidi")
-        input_names: list[str] = rtmidi_backend.get_input_names()
+    with open(virmidi_device, "wb", buffering=0) as midi_out:
+        logger.info(f"Sending translated CC messages to {virmidi_device}")
 
-        input_port_name: str | None = None
-        keywords: list[str] = device.get("search_keywords", ["MIDI", "Controller"])
+        while True:
+            input_port_name = find_input_port(backend, keywords)
 
-        for name in input_names:
-            if any(keyword in name for keyword in keywords):
-                input_port_name = name
-                break
+            if not input_port_name:
+                logger.warning(
+                    f"No MIDI input matching {keywords}. Retrying in {RECONNECT_DELAY_SEC:.0f}s. "
+                    f"Available ports: {backend.get_input_names()}"
+                )
+                time.sleep(RECONNECT_DELAY_SEC)
+                continue
 
-        if not input_port_name:
-            logger.error(
-                f"Could not find MIDI port matching keywords: {keywords}\nAvailable ports: {input_names}"
-            )
-            sys.exit(1)
+            logger.info(f"Listening to '{input_port_name}' for Program Changes...")
 
-        logger.info(f"Listening to '{input_port_name}' for Program Changes...")
+            try:
+                with backend.open_input(input_port_name) as inport:
+                    for msg in inport:
+                        if msg.type != "program_change":
+                            continue
 
-        try:
-            with rtmidi_backend.open_input(input_port_name) as inport:
-                for msg in inport:
-                    if msg.type != "program_change":
-                        continue
+                        prog_num = msg.program
+                        now = time.time()
 
-                    prog_num = msg.program
-                    now = time.time()
+                        if prog_num in pedalboards:
+                            target_board = pedalboards[prog_num]
+                            is_off_cooldown = (
+                                now - last_pedalboard_load_time > board_cooldown
+                            )
+                            is_different_board = target_board != current_board
 
-                    if prog_num in pedalboards:
-                        target_board: str = pedalboards[prog_num]
-                        is_off_cooldown: bool = (
-                            now - last_pedalboard_load_time > board_cooldown
-                        )
-                        is_different_board: bool = target_board != current_board
+                            if not (is_off_cooldown and is_different_board):
+                                continue
 
-                        if is_off_cooldown and is_different_board:
                             load_pedalboard(
                                 board_name=target_board, system_config=system
                             )
+
                             last_pedalboard_load_time = now
                             current_board = target_board
 
-                    elif prog_num in effect_toggles:
-                        is_off_cooldown: bool = (
-                            now - last_effect_toggle_time > effect_toggle_cooldown
-                        )
+                            # A fresh pedalboard starts with every effect at its
+                            # saved state, so our tracked toggles no longer match.
+                            toggle_states = dict.fromkeys(effect_toggles, False)
 
-                        if not is_off_cooldown:
-                            continue
+                        elif prog_num in effect_toggles:
+                            is_off_cooldown = (
+                                now - last_effect_toggle_time > effect_toggle_cooldown
+                            )
 
-                        toggled = not toggle_states[prog_num]
-                        toggle_states[prog_num] = toggled
+                            if not is_off_cooldown:
+                                continue
 
-                        cc_num = effect_toggles[prog_num]
-                        cc_val = 127 if toggled else 0
+                            toggled = not toggle_states[prog_num]
+                            toggle_states[prog_num] = toggled
 
-                        # Generate the raw bytes (Status byte + CC Number + Value)
-                        status_byte = 0xB0 + out_channel
-                        midi_out_fd.write(bytes([status_byte, cc_num, cc_val]))
+                            cc_num = effect_toggles[prog_num]
+                            cc_val = 127 if toggled else 0
+                            status_byte = 0xB0 + out_channel
 
-                        logger.info(
-                            f"Received PC {prog_num} -> Sent CC {cc_num} (Value {cc_val})"
-                        )
+                            midi_out.write(bytes([status_byte, cc_num, cc_val]))
 
-                        last_effect_toggle_time = now
+                            logger.info(
+                                f"Received PC {prog_num} -> Sent CC {cc_num} (Value {cc_val})"
+                            )
 
-        except KeyboardInterrupt:
-            print("\nExiting...")
-            sys.exit(0)
+                            last_effect_toggle_time = now
+            except OSError as e:
+                logger.warning(f"Lost '{input_port_name}': {e}")
+
+            # mido stops iterating when the port closes, which happens whenever the
+            # controller is unplugged. Go back and wait for it to reappear.
+            logger.warning(f"Input closed. Reconnecting in {RECONNECT_DELAY_SEC:.0f}s...")
+            time.sleep(RECONNECT_DELAY_SEC)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nExiting...")
+        sys.exit(0)
