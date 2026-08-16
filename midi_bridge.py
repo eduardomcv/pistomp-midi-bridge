@@ -14,6 +14,8 @@ import urllib.request
 from typing import Any
 from urllib.error import HTTPError, URLError
 
+from mod_state import Binding, ModState, ModStateClient
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,7 @@ except ImportError:
         "Missing 'mido' library. Please run: sudo apt install python3-mido python3-rtmidi"
     )
     sys.exit(1)
+
 
 CARDS_FILE = "/proc/asound/cards"
 CARD_LINE = re.compile(r"^\s*(\d+)\s+\[(\w+)\s*\]")
@@ -104,7 +107,9 @@ def find_virmidi_device() -> str | None:
         if devices:
             return devices[0]
 
-        logger.error(f"VirMIDI is card {index} but it has no /dev/snd/midiC{index}D* node.")
+        logger.error(
+            f"VirMIDI is card {index} but it has no /dev/snd/midiC{index}D* node."
+        )
 
     return None
 
@@ -117,11 +122,36 @@ def find_input_port(backend: mido.Backend, keywords: list[str]) -> str | None:
     return None
 
 
+def decide_toggle_cc_value(binding: Binding | None, fallback_is_on: bool) -> int:
+    """Pick the CC value that flips a control to its opposite state.
+
+    Prefers mod-ui's actual current value (`binding`) so the switch always
+    matches reality, even if this bridge never saw the previous press (e.g.
+    the effect was toggled from the pi-stomp's own footswitches, the web UI,
+    or a pedalboard loaded with the effect already on). Falls back to a
+    locally tracked guess only when mod-ui hasn't reported this control yet.
+
+    :bypass direction (from mod-host effects.c):
+        CC < 64  → bypass=1.0 (effect OFF)
+        CC >= 64 → bypass=0.0 (effect ON)
+    So to un-bypass (value=1.0 → want ON) send 127; to bypass (value=0.0 → want OFF) send 0.
+    Plain params map linearly min→max, so the midpoint rule applies in the normal direction.
+    """
+    if binding is not None:
+        if binding.symbol == ":bypass":
+            return 127 if binding.value >= binding.midpoint else 0
+        return 0 if binding.value >= binding.midpoint else 127
+
+    return 0 if fallback_is_on else 127
+
+
 def load_pedalboard(board_name: str, system_config: dict[str, str]) -> None:
     logger.info(f"Resetting engine and loading: {board_name}")
 
     api_url = system_config.get("mod_api_url", "http://localhost:80")
-    boards_dir = system_config.get("pedalboards_dir", "/home/pistomp/data/.pedalboards/")
+    boards_dir = system_config.get(
+        "pedalboards_dir", "/home/pistomp/data/.pedalboards/"
+    )
 
     try:
         urllib.request.urlopen(f"{api_url}/reset", timeout=2)
@@ -172,7 +202,18 @@ def main():
     last_pedalboard_load_time: float = 0
     last_effect_toggle_time: float = 0
     current_board: str | None = None
-    toggle_states: dict[int, bool] = dict.fromkeys(effect_toggles, False)
+
+    # Only used when mod-ui hasn't reported this control yet (see
+    # decide_toggle_cc_value); once it has, its live value always wins.
+    fallback_toggle_states: dict[int, bool] = dict.fromkeys(effect_toggles, False)
+
+    mod_api_url = system.get("mod_api_url", "http://localhost:80")
+    mod_ws_url = system.get(
+        "mod_ws_url", mod_api_url.replace("http://", "ws://", 1) + "/websocket"
+    )
+    mod_state = ModState()
+    mod_state_client = ModStateClient(mod_ws_url, mod_state)
+    mod_state_client.start()
 
     # Turn systemd's SIGTERM into SystemExit so the MIDI ports get released.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
@@ -229,7 +270,9 @@ def main():
                             last_pedalboard_load_time = now
                             current_board = target_board
 
-                            toggle_states = dict.fromkeys(effect_toggles, False)
+                            fallback_toggle_states = dict.fromkeys(
+                                effect_toggles, False
+                            )
 
                         elif prog_num in effect_toggles:
                             is_off_cooldown = (
@@ -239,24 +282,34 @@ def main():
                             if not is_off_cooldown:
                                 continue
 
-                            toggled = not toggle_states[prog_num]
-                            toggle_states[prog_num] = toggled
-
                             cc_num = effect_toggles[prog_num]
-                            cc_val = 127 if toggled else 0
+                            binding = mod_state.lookup(out_channel, cc_num)
+                            cc_val = decide_toggle_cc_value(
+                                binding, fallback_is_on=fallback_toggle_states[prog_num]
+                            )
+                            fallback_toggle_states[prog_num] = cc_val == 127
                             status_byte = 0xB0 + out_channel
 
                             midi_out.write(bytes([status_byte, cc_num, cc_val]))
 
-                            logger.info(
-                                f"Received PC {prog_num} -> Sent CC {cc_num} (Value {cc_val})"
-                            )
+                            if binding is not None:
+                                logger.info(
+                                    f"Received PC {prog_num} -> Sent CC {cc_num} = {cc_val} "
+                                    f"({binding.instance}:{binding.symbol} was {binding.value})"
+                                )
+                            else:
+                                logger.info(
+                                    f"Received PC {prog_num} -> Sent CC {cc_num} = {cc_val} "
+                                    "(no live binding yet, blind toggle)"
+                                )
 
                             last_effect_toggle_time = now
-            except OSError as e:
-                logger.warning(f"Lost '{input_port_name}': {e}")
+            except OSError:
+                logger.exception(f"Lost '{input_port_name}'")
 
-            logger.warning(f"Input closed. Reconnecting in {RECONNECT_DELAY_SEC:.0f}s...")
+            logger.warning(
+                f"Input closed. Reconnecting in {RECONNECT_DELAY_SEC:.0f}s..."
+            )
             time.sleep(RECONNECT_DELAY_SEC)
 
 
