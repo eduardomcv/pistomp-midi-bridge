@@ -80,12 +80,10 @@ def load_config(config_path: str) -> dict[str, Any]:
 
 
 def find_virmidi_device() -> str | None:
-    """Locate the VirMIDI raw MIDI device node, whatever ALSA card index it landed on.
+    """Locate the VirMIDI raw MIDI node, whatever ALSA card index it landed on.
 
-    MOD UI only lists MIDI ports that JACK reports as hardware, so a software
-    port (such as the ones mido/rtmidi create) can never be selected in its
-    MIDI device list. snd-virmidi is a real kernel sound card, so writing raw
-    bytes to its rawmidi node makes them arrive as hardware MIDI.
+    MOD UI only lists MIDI ports that JACK reports as hardware, so writing to
+    this kernel device is what makes the messages visible to MIDI Learn.
     """
     try:
         with open(CARDS_FILE, "r") as f:
@@ -176,8 +174,7 @@ def main():
     current_board: str | None = None
     toggle_states: dict[int, bool] = dict.fromkeys(effect_toggles, False)
 
-    # systemd stops the service with SIGTERM. Turning it into SystemExit lets the
-    # context managers below release the MIDI ports before the process goes away.
+    # Turn systemd's SIGTERM into SystemExit so the MIDI ports get released.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
 
     virmidi_device = find_virmidi_device()
@@ -232,8 +229,6 @@ def main():
                             last_pedalboard_load_time = now
                             current_board = target_board
 
-                            # A fresh pedalboard starts with every effect at its
-                            # saved state, so our tracked toggles no longer match.
                             toggle_states = dict.fromkeys(effect_toggles, False)
 
                         elif prog_num in effect_toggles:
@@ -261,8 +256,6 @@ def main():
             except OSError as e:
                 logger.warning(f"Lost '{input_port_name}': {e}")
 
-            # mido stops iterating when the port closes, which happens whenever the
-            # controller is unplugged. Go back and wait for it to reappear.
             logger.warning(f"Input closed. Reconnecting in {RECONNECT_DELAY_SEC:.0f}s...")
             time.sleep(RECONNECT_DELAY_SEC)
 
