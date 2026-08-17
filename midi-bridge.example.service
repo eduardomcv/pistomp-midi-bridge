@@ -12,11 +12,11 @@ RestartSec=5
 # Point the working directory to where the repository was cloned
 WorkingDirectory=/home/pistomp/pistomp-midi-bridge
 
-# The package lives under src/, so python3 needs to be told where to find it
-Environment=PYTHONPATH=/home/pistomp/pistomp-midi-bridge/src
-
-# NOTE: this assumes that config.json is in the same working directory
-ExecStart=/usr/bin/python3 -m pistomp_midi_bridge.main --config config.json
+# NOTE: this assumes that config.json is in the same working directory, and
+# that `uv sync --frozen` has already been run in WorkingDirectory to create
+# .venv/ (see README). Calling the venv's console script directly means no
+# uv invocation, no dependency resolution and no network access at boot.
+ExecStart=/home/pistomp/pistomp-midi-bridge/.venv/bin/pistomp-midi-bridge --config config.json
 
 [Install]
 WantedBy=multi-user.target
