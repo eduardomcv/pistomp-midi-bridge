@@ -65,6 +65,49 @@ def test_parse_unknown_message_is_ignored():
     assert msg == UnknownMessage(raw="stats 19.9 0")
 
 
+def test_feed_skips_parsing_for_unhandled_commands(monkeypatch):
+    """`output_set` and `data_ready` alone measured at ~99% of a live
+    pi-stomp's `/websocket` traffic, and ModState has never handled either
+    -- parse_message() always returns UnknownMessage for them, which feed()
+    then does nothing with. Skip parsing entirely for any command we don't
+    handle, rather than building a message object and running it through
+    six isinstance checks for every one of them."""
+    import pistomp_midi_bridge.mod_state as mod_state_module
+
+    original_parse_message = mod_state_module.parse_message
+    calls: list[str] = []
+    monkeypatch.setattr(
+        mod_state_module,
+        "parse_message",
+        lambda raw: (calls.append(raw), original_parse_message(raw))[1],
+    )
+
+    state = ModState()
+    state.feed("output_set /graph/stereo level 0.019844")
+    state.feed("data_ready 481646")
+    state.feed("stats 19.9 0")
+
+    assert calls == []
+
+
+def test_feed_still_parses_handled_commands(monkeypatch):
+    import pistomp_midi_bridge.mod_state as mod_state_module
+
+    original_parse_message = mod_state_module.parse_message
+    calls: list[str] = []
+    monkeypatch.setattr(
+        mod_state_module,
+        "parse_message",
+        lambda raw: (calls.append(raw), original_parse_message(raw))[1],
+    )
+
+    state = ModState()
+    state.feed("midi_map /graph/Noisegate :bypass 14 110 0.0 1.0")
+
+    assert calls == ["midi_map /graph/Noisegate :bypass 14 110 0.0 1.0"]
+    assert state.lookup(channel=14, controller=110) is not None
+
+
 def test_lookup_returns_none_for_unmapped_control():
     state = ModState()
     assert state.lookup(channel=14, controller=110) is None

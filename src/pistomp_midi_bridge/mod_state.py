@@ -81,6 +81,15 @@ Message = (
 )
 
 
+# Every command parse_message() actually recognizes; anything else always
+# becomes UnknownMessage, which feed() does nothing with. Kept in sync with
+# the `if cmd == "..."` branches below -- if that drifts, the many existing
+# tests feeding each of these commands through ModState.feed() will fail.
+_HANDLED_COMMANDS = frozenset(
+    {"midi_map", "param_set", "add", "remove", "loading_start", "loading_end"}
+)
+
+
 def _strip_graph_prefix(path: str) -> str:
     return path.removeprefix("/graph/")
 
@@ -153,6 +162,11 @@ class ModState:
         self._loading = False
 
     def feed(self, raw: str) -> None:
+        cmd, _, _ = raw.partition(" ")
+
+        if cmd not in _HANDLED_COMMANDS:
+            return
+
         msg = parse_message(raw)
 
         with self._lock:
