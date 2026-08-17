@@ -75,7 +75,8 @@ MIT), just the same publicly-documented `/websocket` protocol.
 1. Clone the repository:
 
     ```sh
-      git clone https://github.com/eduardomcv/mvave-bridge.git cd mvave-bridge
+    git clone https://github.com/eduardomcv/pistomp-midi-bridge.git
+    cd pistomp-midi-bridge
     ```
 
 2. Create your configuration file:
@@ -88,7 +89,7 @@ MIT), just the same publicly-documented `/websocket` protocol.
 3. Create your service file:
 
     ```sh
-      cp midi-bridge.service.example midi-bridge.service
+    cp midi-bridge.example.service midi-bridge.service
     ```
 
 ## Configuration (`config.json`)
@@ -111,6 +112,21 @@ both; the script refuses to start otherwise. Controllers that send a different
 PC range per bank make this easy to arrange — on an M-Vave Chocolate, for
 instance, bank 1 sends PC 0-3 and bank 2 sends PC 4-7, so one bank can drive
 effect toggles while the other switches pedalboards.
+
+> **Note on MIDI channel numbering:** `device.output_channel` here is the
+> literal wire channel (0-15) sent in the raw MIDI status byte, and mod-ui's
+> `midi_map` messages report that same wire channel directly (confirmed
+> against a live `/websocket` capture in
+> `tests/fixtures/mod_ui_connect_dump.txt`). pi-stomp's own
+> `hardware.midi.channel` in `default_config.yml` is *not* a plain wire
+> channel: pi-stomp's `get_real_midi_channel()` (`pistomp/hardware.py`)
+> subtracts 1 from any non-zero value before using it — a workaround for
+> what pi-stomp's own source calls a "LAME bug in Mod" — so its
+> commonly-seen `channel: 14` actually produces wire channel 13. Setting
+> both to `14` does *not* put them on the same wire channel — that's a
+> coincidence of the example values, not a collision to avoid. Check
+> `aseqdump` if you're unsure which wire channel a given config value
+> actually produces.
 
 ### Example `config.json`
 
@@ -145,10 +161,10 @@ effect toggles while the other switches pedalboards.
 
 ## Usage
 
-Test the script manually:
+Test the script manually (mirrors what the systemd service runs):
 
 ```bash
-./midi_bridge.py
+PYTHONPATH=src python3 -m pistomp_midi_bridge.main
 ```
 
 ### MOD UI Setup
