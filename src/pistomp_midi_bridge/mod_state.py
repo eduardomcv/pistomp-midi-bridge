@@ -246,9 +246,12 @@ class ModStateClient:
     """Keeps a `ModState` in sync with mod-ui's `/websocket` endpoint.
 
     `start()`/`stop()` run the connection on a daemon thread, so `feed()` never
-    blocks the caller's MIDI input loop. Runs on plain asyncio (rather than
-    `websockets.sync`) because the apt-packaged `python3-websockets` on the
-    pi-stomp (10.4) predates the synchronous client API (added in 12.0).
+    blocks the caller's MIDI input loop. Uses asyncio (rather than
+    `websockets.sync`, available since websockets 11.0) mainly because it
+    already needs its own thread and event loop regardless of which client
+    API drives it; switching to the sync client would be a separate,
+    deliberate change, not a requirement. Dependencies are managed by `uv`
+    (see `pyproject.toml` / `uv.lock`), not pinned to whatever apt ships.
     """
 
     def __init__(self, url: str, state: ModState, reconnect_delay: float = 3.0) -> None:
