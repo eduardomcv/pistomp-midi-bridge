@@ -23,10 +23,21 @@ MIT), just the same publicly-documented `/websocket` protocol.
 
 1. Install Python Dependencies
 
+    This project is managed with [uv](https://docs.astral.sh/uv/), which
+    already ships on the pi-stomp's Debian image. From the repository root:
+
     ```bash
-    sudo apt update
-    sudo apt install python3-mido python3-rtmidi python3-websockets
+    uv sync --frozen
     ```
+
+    This creates a `.venv/` with the exact versions pinned in `uv.lock`.
+    Prefer this over installing `python3-mido`/`python3-rtmidi` via `apt`:
+    `mido` versions before 1.2.10 leak an ALSA sequencer client handle on
+    every port scan, crashing the bridge in a restart loop within about a
+    minute whenever no matching controller is plugged in (see
+    Troubleshooting below). Debian bookworm currently ships an affected
+    `mido`, and a stray `pip install` can also shadow the apt package with
+    an equally old version.
 
 2. Enable the VirMIDI Kernel Module
 
@@ -220,6 +231,34 @@ sudo systemctl reset-failed jack.service mod-ui.service
 sudo reboot
 ```
 
+### The service restarts every ~45 seconds when no controller is plugged in
+
+```
+ALSA lib seq_hw.c:466:(snd_seq_hw_open) open /dev/snd/seq failed: Cannot allocate memory
+RuntimeError: MidiOutAlsa::initialize: error creating ALSA sequencer client object.
+```
+
+While no matching MIDI input is present, the bridge re-scans available ports
+every few seconds. `mido` versions before 1.2.10 create an `rtmidi.MidiIn`/
+`MidiOut` on every scan without releasing it afterwards, so ALSA sequencer
+clients accumulate until the kernel refuses to create new ones and the
+process crashes. `Restart=on-failure` in the service brings it back up, but
+it crashes again a minute or so later — a slow restart loop rather than an
+outright hang, which makes it easy to miss.
+
+Confirm which `mido` is actually being imported, and watch the client count
+while the bridge is running with nothing plugged in:
+
+```bash
+.venv/bin/python -c "import mido; print(mido.__version__, mido.__file__)"
+watch -n1 'grep -c ^Client /proc/asound/seq/clients'
+```
+
+A flat count is healthy; steady growth means a pre-1.2.10 `mido` is winning
+the import — commonly a stray system-wide `pip install` (e.g. under
+`/usr/local/lib/python3.11/dist-packages`) shadowing a newer one. Running
+from the uv-managed `.venv/` (see Prerequisites) avoids this entirely.
+
 ### The bridge logs translated CC messages but nothing happens in MOD UI
 
 Confirm that **Virtual Raw MIDI** is checked in MOD UI's MIDI Ports dialog, then
@@ -244,8 +283,9 @@ If mod-ui is reachable at `system.mod_api_url` but the WebSocket URL differs
 
 ## Development
 
-Install dependencies (pinned to match the apt packages used on the pi-stomp
-itself, so tests run against the same versions the device runs):
+Install dependencies (the exact versions pinned in `uv.lock`, the same ones
+`uv sync --frozen` installs on the pi-stomp itself, so tests run against the
+same versions the device runs):
 
 ```bash
 uv sync --group dev
