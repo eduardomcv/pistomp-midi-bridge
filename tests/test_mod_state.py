@@ -149,6 +149,24 @@ def test_lookup_resumes_after_loading_end():
     assert state.lookup(channel=14, controller=110) is not None
 
 
+def test_mark_disconnected_gates_lookup_until_fresh_loading_end():
+    """While disconnected, mod-ui may restart or change state without us
+    seeing it, so a cached value can no longer be trusted as "live". Gate
+    lookup() the same way an in-progress pedalboard load does, until a new
+    connection's loading_end proves the cache is fresh again."""
+    state = ModState()
+    state.feed("midi_map /graph/Noisegate :bypass 14 110 0.0 1.0")
+    state.feed("param_set /graph/Noisegate :bypass 1.000000")
+
+    state.mark_disconnected()
+
+    assert state.lookup(channel=14, controller=110) is None
+
+    state.feed("loading_end 0")
+
+    assert state.lookup(channel=14, controller=110) is not None
+
+
 def test_binding_midpoint():
     from pistomp_midi_bridge.mod_state import Binding
 
