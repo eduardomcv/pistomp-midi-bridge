@@ -2,8 +2,6 @@ import glob
 import logging
 import re
 
-from mido import Backend
-
 from pistomp_midi_bridge.mod_state import Binding
 
 logger = logging.getLogger(__name__)
@@ -45,8 +43,15 @@ def find_virmidi_device() -> str | None:
     return None
 
 
-def find_input_port(backend: Backend, keywords: list[str]) -> str | None:
-    for name in backend.get_input_names():
+def find_input_port(port_names: list[str], keywords: list[str]) -> str | None:
+    """Pick the first port name matching any keyword.
+
+    Takes an already-fetched port list rather than a `Backend`, so a caller
+    polling on a retry loop can reuse one `get_input_names()` call for both
+    the match and any "available ports" log line, instead of scanning ALSA
+    twice per iteration.
+    """
+    for name in port_names:
         if any(keyword in name for keyword in keywords):
             return name
 

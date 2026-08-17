@@ -17,7 +17,9 @@ try:
     import mido
 except ImportError:
     logger.error(
-        "Missing 'mido' library. Please run: sudo apt install python3-mido python3-rtmidi"
+        "Missing 'mido' library. Please run 'uv sync --frozen' in the "
+        "repository, or run this via the venv it creates (.venv/bin/"
+        "pistomp-midi-bridge) rather than a bare system python3."
     )
     sys.exit(1)
 

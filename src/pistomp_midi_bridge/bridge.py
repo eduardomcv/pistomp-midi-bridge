@@ -35,12 +35,17 @@ def run_bridge(
         logger.info(f"Sending translated CC messages to {virmidi_device}")
 
         while True:
-            input_port_name = find_input_port(mido_backend, device.search_keywords)
+            # Fetched once and reused for both the match and the log line
+            # below: get_input_names() creates and tears down a throwaway
+            # rtmidi MidiIn/MidiOut each call (see mido's rtmidi backend),
+            # so scanning twice per retry doubles that cost for nothing.
+            available_ports = mido_backend.get_input_names()
+            input_port_name = find_input_port(available_ports, device.search_keywords)
 
             if not input_port_name:
                 logger.warning(
                     f"No MIDI input matching {device.search_keywords}. Retrying in {RECONNECT_DELAY_SEC:.0f}s. "
-                    f"Available ports: {mido_backend.get_input_names()}"
+                    f"Available ports: {available_ports}"
                 )
                 time.sleep(RECONNECT_DELAY_SEC)
                 continue
