@@ -9,11 +9,14 @@ User=pistomp
 Restart=on-failure
 RestartSec=5
 
-# Point the working directory to where the script is located
+# Point the working directory to where the repository was cloned
 WorkingDirectory=/home/pistomp/pistomp-midi-bridge
 
+# The package lives under src/, so python3 needs to be told where to find it
+Environment=PYTHONPATH=/home/pistomp/pistomp-midi-bridge/src
+
 # NOTE: this assumes that config.json is in the same working directory
-ExecStart=/usr/bin/python3 main.py --config config.json
+ExecStart=/usr/bin/python3 -m pistomp_midi_bridge.main --config config.json
 
 [Install]
 WantedBy=multi-user.target
