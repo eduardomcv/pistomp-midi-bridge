@@ -22,6 +22,7 @@ import threading
 from dataclasses import dataclass
 
 import websockets
+from websockets.exceptions import WebSocketException
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +183,20 @@ class ModState:
         self._bindings = {k: v for k, v in self._bindings.items() if v[0] != instance}
         self._values = {k: v for k, v in self._values.items() if k[0] != instance}
 
+    def mark_disconnected(self) -> None:
+        """Call when the WebSocket connection to mod-ui drops.
+
+        Gates lookup() the same way an in-progress pedalboard load does:
+        while disconnected, mod-ui's actual state may change (a different
+        pedalboard loaded, mod-ui restarted) without us seeing it, so our
+        cached values can no longer be trusted as live. The gate lifts once
+        a new connection's fresh dump ends with a `loading_end` we actually
+        saw; a mid-load reconnect that keeps `_loading` True is intentional
+        too, since we didn't observe that load's `loading_start` either.
+        """
+        with self._lock:
+            self._loading = True
+
     def lookup(self, channel: int, controller: int) -> Binding | None:
         with self._lock:
             if self._loading:
@@ -220,17 +235,35 @@ class ModStateClient:
         self._thread: threading.Thread | None = None
 
     async def run_once(self) -> None:
-        """Connect once and feed messages into state until the connection closes."""
-        async with websockets.connect(self.url) as ws:
+        """Connect once and feed messages into state until the connection closes.
+
+        `ping_interval=None` disables websockets' own protocol-level ping,
+        matching pi-stomp's own client (modalapi/websocket_bridge.py):
+        mod-ui already sends its own application-level "ping" text frames
+        (mod/session.py's SESSION.web_ping), which we must reply "pong" to
+        below. Leaving the library's ping enabled stacks a second, redundant
+        keepalive on top and risks the pi's own ping/pong exchange stalling
+        under load and aborting the connection with ConnectionClosedError.
+        """
+        async with websockets.connect(self.url, ping_interval=None) as ws:
             async for raw in ws:
+                if raw == "ping":
+                    await ws.send("pong")
+                    continue
+
                 self.state.feed(raw)
 
     async def run_forever(self) -> None:
         while not self._stop.is_set():
             try:
                 await self.run_once()
-            except OSError as e:
+            except (WebSocketException, OSError) as e:
                 logger.warning(f"mod-ui WebSocket connection failed: {e}")
+            finally:
+                # Whether run_once() returned (server closed cleanly) or
+                # raised (abnormal close/refused/etc.), the connection is
+                # now down: stop serving cached values as if they were live.
+                self.state.mark_disconnected()
 
             if not self._stop.is_set():
                 await asyncio.sleep(self.reconnect_delay)
