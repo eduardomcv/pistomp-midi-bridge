@@ -4,7 +4,11 @@ import time
 from mido import Backend
 
 from pistomp_midi_bridge.config import Config
-from pistomp_midi_bridge.midi import decide_toggle_cc_value, find_input_port
+from pistomp_midi_bridge.midi import (
+    ToggleEchoTracker,
+    decide_toggle_cc_value,
+    find_input_port,
+)
 from pistomp_midi_bridge.mod_state import ModState
 from pistomp_midi_bridge.pedalboard import load_pedalboard
 
@@ -26,6 +30,10 @@ def run_bridge(
     # Only used when mod-ui hasn't reported this control yet (see
     # decide_toggle_cc_value); once it has, its live value always wins.
     fallback_toggle_states: dict[int, bool] = dict.fromkeys(effect_toggles, False)
+
+    # Warns if a CC's mapping was likely unlearned while connected (see
+    # ToggleEchoTracker); mod-ui never tells us directly.
+    echo_tracker = ToggleEchoTracker()
 
     last_pedalboard_load_time: float = 0
     last_effect_toggle_time: float = 0
@@ -84,6 +92,7 @@ def run_bridge(
                             fallback_toggle_states = dict.fromkeys(
                                 effect_toggles, False
                             )
+                            echo_tracker.reset()
 
                         elif prog_num in effect_toggles:
                             is_off_cooldown = (
@@ -105,6 +114,14 @@ def run_bridge(
                             midi_out.write(bytes([status_byte, cc_num, cc_val]))
 
                             if binding is not None:
+                                if echo_tracker.observe_press(cc_num, binding.value):
+                                    logger.warning(
+                                        f"CC {cc_num} produced no change in mod-ui "
+                                        f"({binding.instance}:{binding.symbol} still "
+                                        f"{binding.value}). The MIDI mapping was likely "
+                                        "removed -- re-learn it in MOD UI."
+                                    )
+
                                 logger.info(
                                     f"Received PC {prog_num} -> Sent CC {cc_num} = {cc_val} "
                                     f"({binding.instance}:{binding.symbol} was {binding.value})"

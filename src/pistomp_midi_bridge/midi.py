@@ -58,6 +58,52 @@ def find_input_port(port_names: list[str], keywords: list[str]) -> str | None:
     return None
 
 
+class ToggleEchoTracker:
+    """Warns when a sent CC likely has no live MIDI mapping anymore.
+
+    mod-ui's `/websocket` feed never broadcasts `midi_unmap` (only
+    `send_modified`, addressed to mod-host itself -- see mod-ui's
+    `host.py::address()`), so `ModState` has no way to notice a mapping was
+    removed via MIDI Learn's "unlearn" while we stayed connected (loading a
+    different pedalboard or reconnecting is covered separately, since a
+    fresh dump only contains currently-valid mappings).
+
+    If a mapping is gone, every CC we send has no effect and the control's
+    live value never moves between presses -- that pattern is the only
+    signal available, so this reports it rather than attempting to recover
+    (there is nothing to recover: no CC value does anything once mod-host
+    has no mapping for it). Warns once per CC on the first missed press,
+    then stays quiet until that CC's value starts moving again, so a
+    genuinely dead switch doesn't spam the log on every subsequent press.
+    """
+
+    def __init__(self) -> None:
+        self._last_value: dict[int, float] = {}
+        self._warned: set[int] = set()
+
+    def observe_press(self, cc_num: int, value_before_send: float) -> bool:
+        """Record this press; return True the first time a CC's value is
+        found unchanged since its previous press (a likely missed echo)."""
+        previous = self._last_value.get(cc_num)
+        self._last_value[cc_num] = value_before_send
+
+        if previous is None or value_before_send != previous:
+            self._warned.discard(cc_num)
+            return False
+
+        if cc_num in self._warned:
+            return False
+
+        self._warned.add(cc_num)
+        return True
+
+    def reset(self) -> None:
+        """Call on pedalboard load: values from the old board say nothing
+        about whether the new board's mappings are working."""
+        self._last_value.clear()
+        self._warned.clear()
+
+
 def decide_toggle_cc_value(binding: Binding | None, fallback_is_on: bool) -> int:
     """Pick the CC value that flips a control to its opposite state.
 

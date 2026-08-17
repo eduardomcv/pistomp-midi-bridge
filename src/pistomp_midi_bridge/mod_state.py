@@ -171,6 +171,16 @@ class ModState:
                 self._remove(msg.instance)
             elif isinstance(msg, LoadingStartMessage):
                 self._loading = True
+                # loading_start always precedes a complete fresh state
+                # description (a reconnect's full dump, or a newly loaded
+                # pedalboard's), so dropping the old table here makes
+                # lookup() self-correcting against changes we never saw a
+                # message for -- e.g. a MIDI mapping removed via unlearn,
+                # which mod-ui never broadcasts. Safe because lookup() is
+                # already gated on `_loading` until the matching
+                # loading_end arrives with the fresh data.
+                self._bindings.clear()
+                self._values.clear()
             elif isinstance(msg, LoadingEndMessage):
                 self._loading = False
 

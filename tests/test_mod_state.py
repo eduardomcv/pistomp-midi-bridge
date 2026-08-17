@@ -141,12 +141,51 @@ def test_lookup_returns_none_while_loading():
 
 
 def test_lookup_resumes_after_loading_end():
+    # loading_start always precedes a complete fresh dump on real wire
+    # traffic (see the fixture), so the binding is fed after it, not before.
     state = ModState()
-    state.feed("midi_map /graph/Noisegate :bypass 14 110 0.0 1.0")
     state.feed("loading_start 0 1")
+    state.feed("midi_map /graph/Noisegate :bypass 14 110 0.0 1.0")
     state.feed("loading_end 0")
 
     assert state.lookup(channel=14, controller=110) is not None
+
+
+def test_loading_start_clears_previous_bindings():
+    """A `loading_start` always precedes a complete fresh state description
+    (either a reconnect's full dump, or a newly loaded pedalboard's), so
+    clearing here makes ModState self-correcting against changes we never
+    saw a message for -- e.g. a MIDI mapping removed while we stayed
+    connected. lookup() is already gated by `_loading`, so there's no window
+    where the just-cleared table is served as if it were authoritative."""
+    state = ModState()
+    state.feed("midi_map /graph/Noisegate :bypass 14 110 0.0 1.0")
+    state.feed("param_set /graph/Noisegate :bypass 1.000000")
+
+    state.feed("loading_start 0 1")
+    state.feed("loading_end 0")
+
+    assert state.lookup(channel=14, controller=110) is None
+
+
+def test_reconnect_dump_replaces_stale_bindings():
+    """Simulates unlearning a mapping while connected, then a reconnect: the
+    fresh dump (bracketed by loading_start/loading_end) only contains
+    currently-valid mappings, so the removed one must not survive it."""
+    state = ModState()
+    state.feed("midi_map /graph/plate :bypass 14 112 0.0 1.0")
+    state.feed("param_set /graph/plate :bypass 0.000000")
+
+    state.feed("loading_start 0 1")
+    state.feed("midi_map /graph/Noisegate :bypass 14 110 0.0 1.0")
+    state.feed("param_set /graph/Noisegate :bypass 1.000000")
+    state.feed("loading_end 0")
+
+    assert state.lookup(channel=14, controller=112) is None
+
+    binding = state.lookup(channel=14, controller=110)
+    assert binding is not None
+    assert binding.value == 1.0
 
 
 def test_mark_disconnected_gates_lookup_until_fresh_loading_end():
