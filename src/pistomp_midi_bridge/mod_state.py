@@ -264,15 +264,15 @@ class ModStateClient:
     async def run_once(self) -> None:
         """Connect once and feed messages into state until the connection closes.
 
-        `ping_interval=None` disables websockets' own protocol-level ping,
-        matching pi-stomp's own client (modalapi/websocket_bridge.py):
-        mod-ui already sends its own application-level "ping" text frames
-        (mod/session.py's SESSION.web_ping), which we must reply "pong" to
-        below. Leaving the library's ping enabled stacks a second, redundant
-        keepalive on top and risks the pi's own ping/pong exchange stalling
-        under load and aborting the connection with ConnectionClosedError.
+        Uses the library's default protocol-level ping/pong (enabled by
+        default) to keep the connection alive. The mod-ui WebSocket server
+        expects and sends protocol-level pings; disabling them causes the
+        server to drop the connection after the initial state dump.
+
+        We also handle mod-ui's application-level "ping" text frames as a
+        safety net, though the protocol-level ping is the primary keepalive.
         """
-        async with websockets.connect(self.url, ping_interval=None) as ws:
+        async with websockets.connect(self.url) as ws:
             async for raw in ws:
                 if raw == "ping":
                     await ws.send("pong")
