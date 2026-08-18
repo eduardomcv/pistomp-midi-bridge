@@ -264,13 +264,20 @@ class ModStateClient:
     async def run_once(self) -> None:
         """Connect once and feed messages into state until the connection closes.
 
-        Uses the library's default protocol-level ping/pong (enabled by
-        default) to keep the connection alive. The mod-ui WebSocket server
-        expects and sends protocol-level pings; disabling them causes the
-        server to drop the connection after the initial state dump.
+        Keeps websockets' default protocol-level keepalive (ping every 20s,
+        give up after 20s without a pong) so a silently half-open TCP
+        connection surfaces as ConnectionClosedError, which run_forever turns
+        into a reconnect. Without it, `async for` can block forever on a
+        socket that will never deliver another message.
 
-        We also handle mod-ui's application-level "ping" text frames as a
-        safety net, though the protocol-level ping is the primary keepalive.
+        Separately, mod-ui broadcasts its own application-level "ping" text
+        frame (mod/session.py's SESSION.web_ping) and accepts a "pong" reply
+        as a liveness ack (mod/webserver.py's ServerWebSocket.on_message), so
+        we answer those below. pi-stomp's own client disables the library
+        keepalive and relies solely on that exchange; we keep both. Captures
+        on a live pi-stomp ran for minutes without dropping under either
+        configuration, so this is a robustness preference, not a fix for an
+        observed failure.
         """
         async with websockets.connect(self.url) as ws:
             async for raw in ws:
